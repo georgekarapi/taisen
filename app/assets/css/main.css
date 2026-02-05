@@ -2,6 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-[#0B1120];
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes spin {
+  from { --angle: 0deg; }
+  to { --angle: 360deg; }
+}
+
+
+@layer base {
+  body {
+    @apply bg-cyber-dark text-white font-body;
+  }
+}
+
+@layer utilities {
+  .clip-corner-br {
+    clip-path: polygon(
+        0 0, 
+        100% 0, 
+        100% calc(100% - 20px), 
+        calc(100% - 20px) 100%, 
+        0 100%
+    );
+  }
+  
+  .clip-corner-hero {
+    clip-path: polygon(
+        0 0, 
+        100% 0, 
+        100% calc(100% - 30px), 
+        calc(100% - 30px) 100%, 
+        0 100%
+    );
+  }
+  
+  .text-glow-cyan { text-shadow: 0 0 10px rgba(0, 240, 255, 0.7); }
+  .text-glow-red { text-shadow: 0 0 10px rgba(255, 0, 60, 0.7); }
+}
+
+@layer components {
+  .sidebar-active {
+    background: linear-gradient(90deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+    border-left: 4px solid #ffffff;
+    color: #ffffff;
+  }
+
+  .cyber-card {
+    background: linear-gradient(45deg, #00f0ff, transparent 40%, transparent 60%, #00f0ff);
+    position: relative;
+    transition: all 0.3s ease;
+  }
+  
+  .cyber-card.live {
+    background: conic-gradient(from var(--angle), #ff003c, transparent 20%, transparent 80%, #ff003c);
+    animation: spin 3s linear infinite;
+  }
+
+  .cyber-card.upcoming {
+    background: linear-gradient(45deg, #00f0ff, transparent 40%, transparent 60%, #00f0ff);
+  }
+
+  .cyber-card.ended {
+    background: linear-gradient(45deg, #a855f7, transparent 40%, transparent 60%, #a855f7);
+  }
+
+  .btn-glitch {
+    position: relative;
+    background: transparent;
+    overflow: hidden;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  }
+  
+  .btn-glitch::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border: 1px solid #00f0ff;
+    box-shadow: 0 0 5px #00f0ff;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    z-index: -1;
+  }
 }

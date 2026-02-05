@@ -2,8 +2,6 @@
 </script>
 
 <template>
-  <div class="space-y-12">
-    <DashboardHeroBanner />
-    <DashboardTournamentMatrix />
-  </div>
+  <HomeHero />
+  <HomeTournamentList />
 </template>

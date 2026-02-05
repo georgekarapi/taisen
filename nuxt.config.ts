@@ -7,7 +7,14 @@ export default defineNuxtConfig({
     compatibilityVersion: 4,
   },
   srcDir: 'app/',
-  modules: ['@nuxt/eslint', '@nuxt/image', '@nuxtjs/tailwindcss', 'shadcn-nuxt', '@vueuse/nuxt'],
+  modules: ['@nuxt/eslint', '@nuxt/image', '@nuxtjs/tailwindcss', 'shadcn-nuxt', '@vueuse/nuxt', '@nuxtjs/google-fonts'],
+  googleFonts: {
+    families: {
+      Orbitron: [400, 600, 700, 900],
+      Rajdhani: [400, 500, 600, 700],
+    },
+    display: 'swap',
+  },
   shadcn: {
     prefix: '',
     componentDir: '@/components/ui'

@@ -23,6 +23,15 @@ module.exports = {
     },
     extend: {
       colors: {
+        cyber: {
+          dark: "#050b14",
+          darker: "#02050a",
+          panel: "#0b162a",
+          cyan: "#00f0ff",
+          red: "#ff003c",
+          purple: "#bc13fe",
+          gray: "#6e7f91",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -56,6 +65,14 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+      },
+      fontFamily: {
+        display: ["Orbitron", "sans-serif"],
+        body: ["Rajdhani", "sans-serif"],
+      },
+      boxShadow: {
+        "neon-cyan": "0 0 5px #00f0ff, 0 0 10px #00f0ff",
+        "neon-red": "0 0 5px #ff003c, 0 0 10px #ff003c",
       },
       borderRadius: {
         xl: "calc(var(--radius) + 4px)",

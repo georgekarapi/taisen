@@ -2,12 +2,11 @@
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#0B1120] text-slate-200 font-sans selection:bg-red-500/30">
-    <DashboardSidebar />
-    <main class="pl-24 transition-all duration-300">
-      <div class="container mx-auto p-8 max-w-7xl">
-        <slot />
-      </div>
+  <div class="flex h-screen w-screen overflow-hidden bg-cyber-dark font-body text-white">
+    <CommonSidebar />
+
+    <main class="relative flex-1 overflow-y-auto p-8">
+      <slot />
     </main>
   </div>
 </template>
