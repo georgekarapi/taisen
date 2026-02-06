@@ -5,6 +5,8 @@
   "scripts": {
     "build": "nuxt build",
     "build:sui": "sui move build",
+    "deploy:contracts": "npx tsx move/deploy.ts",
+    "seed:tournaments": "npx tsx move/seed-tournaments.ts",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
@@ -33,6 +35,7 @@
   "devDependencies": {
     "@nuxtjs/google-fonts": "^3.2.0",
     "@nuxtjs/tailwindcss": "^6.14.0",
+    "@types/node": "^25.2.1",
     "shadcn-vue": "^2.4.3"
   }
 }

@@ -1,0 +1,35 @@
+{
+    "network": "devnet",
+    "packageId": "0x21a2ee0d2a1479d09072463fcb754bdcbba0fcc0d79ed2ee95a370bf3abd64e3",
+    "platformConfigId": "0xc9bd5e9d6083ec100f890d2dc23439fb27b9dbe1baeee9199001b8915f1a394a",
+    "gameRegistryId": "0x539ab612d1539421cb9784f96eabcf8e1c3a6b046d097d79c3a60b640b29e703",
+    "adminCapId": "0x9cd7e406676f237d360497f88c712062aa76febdbb8487c2df8855961d46a6b2",
+    "upgradeCapId": "0xf328c1f2660260182d3c69f2b1018919b0d16511d0ef8faac6e66d8ca5aaf9eb",
+    "deployerAddress": "0xc46517e6757acbdc04ddd1271ecd127ae493312cc4287c806e5fc02d9da53aa7",
+    "gmAddress": "0xc3601f88113a8a794401e92f4136fe605429deb55bce50ede9e10b373ab2fd8f",
+    "games": [
+        {
+            "name": "Yu-gi-oh!",
+            "slug": "yu-gi-oh"
+        },
+        {
+            "name": "Magic: The Gathering",
+            "slug": "magic-the-gathering"
+        },
+        {
+            "name": "Shadowverse",
+            "slug": "shadowverse"
+        },
+        {
+            "name": "Riftbount",
+            "slug": "riftbount"
+        },
+        {
+            "name": "Parallel",
+            "slug": "parallel"
+        }
+    ],
+    "creationFee": "1000000",
+    "platformFeeBps": 150,
+    "deployedAt": "2026-02-06T16:40:00Z"
+}
