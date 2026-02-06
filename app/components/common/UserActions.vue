@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { Plus, Wallet, LogOut, Loader2 } from 'lucide-vue-next'
+import { useWallet } from '~/composables/useWallet'
+import WalletModal from './WalletModal.vue'
 
-const { isConnected, truncatedAddress, isConnecting, error, connect, disconnect } = useEnokiWallet()
+const { isConnected, truncatedAddress, isConnecting, error, disconnect } = useWallet()
+
+const isModalOpen = ref(false)
 </script>
 
 <template>
@@ -23,10 +27,11 @@ const { isConnected, truncatedAddress, isConnecting, error, connect, disconnect 
                         <div class="text-sm font-bold text-white leading-none tracking-wide font-mono">
                             {{ truncatedAddress }}
                         </div>
-                        <div class="text-[10px] text-green-400 font-mono mt-1 flex items-center gap-1">
+                        <button @click="isModalOpen = true"
+                            class="text-[10px] text-primary hover:text-white font-mono mt-1 flex items-center gap-1 uppercase tracking-widest transition-colors">
                             <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                            Connected
-                        </div>
+                            Switch Account
+                        </button>
                     </div>
                     <div
                         class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/30 to-secondary/30 border border-white/20 flex items-center justify-center shadow-neon-blue">
@@ -42,7 +47,7 @@ const { isConnected, truncatedAddress, isConnecting, error, connect, disconnect 
 
             <!-- Disconnected State -->
             <template v-else>
-                <button @click="connect" :disabled="isConnecting"
+                <button @click="isModalOpen = true" :disabled="isConnecting"
                     class="flex items-center gap-2 px-4 py-2 bg-primary/20 hover:bg-primary/30 border border-primary/50 hover:border-primary rounded-lg text-sm font-display uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                     <Loader2 v-if="isConnecting" class="w-4 h-4 animate-spin" />
                     <Wallet v-else class="w-4 h-4" />
@@ -51,9 +56,14 @@ const { isConnected, truncatedAddress, isConnecting, error, connect, disconnect 
             </template>
         </div>
 
-        <!-- Error Display -->
-        <div v-if="error" class="text-xs text-red-400 max-w-32 truncate" :title="error">
-            {{ error }}
-        </div>
+        <!-- Wallet Selection Modal -->
+        <ClientOnly>
+            <WalletModal :is-open="isModalOpen" @close="isModalOpen = false" />
+        </ClientOnly>
+    </div>
+
+    <!-- Error Display -->
+    <div v-if="error" class="text-xs text-red-400 max-w-32 truncate" :title="error">
+        {{ error }}
     </div>
 </template>

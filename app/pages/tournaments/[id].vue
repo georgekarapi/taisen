@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Trophy, Shield, Zap, Users, Wallet } from 'lucide-vue-next'
 import { useBreadcrumbs } from '~/composables/useBreadcrumbs'
-import { useEnokiWallet } from '~/composables/useEnokiWallet'
+import { useWallet } from '~/composables/useWallet'
 
 definePageMeta({
     layout: 'content'
@@ -9,7 +9,7 @@ definePageMeta({
 
 const route = useRoute()
 const tournamentId = route.params.id
-const { isConnected, truncatedAddress } = useEnokiWallet()
+const { isConnected, truncatedAddress } = useWallet()
 
 // Static data for mockup
 const tournament = {
@@ -235,7 +235,7 @@ setBreadcrumbs([
                         </div>
                         <div class="flex-1 min-w-0 relative z-10">
                             <div class="text-sm font-bold text-white truncate font-display tracking-wide">{{ user.name
-                                }}</div>
+                            }}</div>
                             <div class="text-[10px] uppercase tracking-wider text-slate-500">{{ user.title }}</div>
                         </div>
                     </div>

@@ -1,6 +1,7 @@
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, markRaw, toRaw } from 'vue'
 import { getWallets, type Wallet, type WalletAccount } from '@wallet-standard/core'
 import { isEnokiWallet, type EnokiWallet } from '@mysten/enoki'
+import { DISCONNECTED_KEY } from './useWallet'
 
 interface EnokiWalletState {
     wallet: EnokiWallet | null
@@ -40,17 +41,25 @@ function initWallets() {
 function checkForConnectedWallet() {
     if (!walletsApi) return
 
+    // Skip if user intentionally disconnected
+    if (localStorage.getItem(DISCONNECTED_KEY) === 'true') {
+        state.value.wallet = null
+        state.value.account = null
+        return
+    }
+
     const wallets = walletsApi.get()
     const enokiWallets = wallets.filter(isEnokiWallet) as EnokiWallet[]
 
     // Check if any Enoki wallet has connected accounts
     for (const wallet of enokiWallets) {
         if (wallet.accounts && wallet.accounts.length > 0) {
-            state.value.wallet = wallet
-            state.value.account = wallet.accounts[0] as WalletAccount
+            state.value.wallet = markRaw(wallet) as EnokiWallet
+            state.value.account = markRaw(wallet.accounts[0]!) as WalletAccount
             return
         }
     }
+
 
     // No connected wallet
     state.value.account = null
@@ -78,6 +87,7 @@ export function useEnokiWallet() {
 
         state.value.isConnecting = true
         state.value.error = null
+        localStorage.removeItem(DISCONNECTED_KEY)
 
         try {
             const wallets = api.get()
@@ -103,8 +113,8 @@ export function useEnokiWallet() {
                 const result = await (connectFeature as { connect: () => Promise<{ accounts: WalletAccount[] }> }).connect()
                 console.log('Connect result:', result)
                 if (result.accounts && result.accounts.length > 0) {
-                    state.value.wallet = googleWallet
-                    state.value.account = result.accounts[0] as WalletAccount
+                    state.value.wallet = markRaw(googleWallet) as EnokiWallet
+                    state.value.account = markRaw(result.accounts[0]!) as WalletAccount
                 }
             }
             else {
@@ -127,10 +137,11 @@ export function useEnokiWallet() {
     }
 
     async function disconnect() {
-        if (!state.value.wallet) return
+        const wallet = toRaw(state.value.wallet)
+        if (!wallet) return
 
         try {
-            const disconnectFeature = state.value.wallet.features['standard:disconnect']
+            const disconnectFeature = wallet.features['standard:disconnect']
             if (disconnectFeature && typeof disconnectFeature === 'object' && 'disconnect' in disconnectFeature) {
                 await (disconnectFeature as { disconnect: () => Promise<void> }).disconnect()
             }
@@ -141,6 +152,7 @@ export function useEnokiWallet() {
         finally {
             state.value.wallet = null
             state.value.account = null
+            localStorage.setItem(DISCONNECTED_KEY, 'true')
         }
     }
 
