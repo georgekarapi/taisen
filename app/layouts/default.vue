@@ -6,10 +6,14 @@
     <CommonSidebar />
 
     <main class="relative flex-1 overflow-y-auto p-8">
-      <div class="absolute top-8 right-8 z-30 pointer-events-auto">
-        <CommonUserActions />
+      <div class="container mx-auto flex flex-col min-h-full">
+        <div class="flex justify-end mb-6">
+          <CommonUserActions />
+        </div>
+        <div class="flex-1">
+          <slot />
+        </div>
       </div>
-      <slot />
     </main>
   </div>
 

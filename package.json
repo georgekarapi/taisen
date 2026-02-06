@@ -11,10 +11,13 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@mysten/enoki": "^1.0.1",
+    "@mysten/sui": "^2.3.0",
     "@nuxt/eslint": "1.13.0",
     "@nuxt/image": "2.0.0",
     "@vueuse/core": "^14.2.0",
     "@vueuse/nuxt": "14.2.0",
+    "@wallet-standard/core": "^1.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "eslint": "^9.39.2",

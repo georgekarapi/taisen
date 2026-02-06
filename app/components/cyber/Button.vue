@@ -7,7 +7,7 @@ defineProps<{
 
 <template>
     <button
-        class="cyber-button relative font-display font-bold uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 group"
+        class="cyber-button relative font-display font-bold uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 group overflow-hidden"
         :class="[
             variant === 'primary' ? 'bg-cyber-red text-white hover:bg-red-600 shadow-neon-red' : '',
             variant === 'secondary' ? 'bg-cyber-cyan text-black hover:bg-cyan-400 shadow-neon-blue' : '',
@@ -18,7 +18,7 @@ defineProps<{
         ]">
         <!-- Glitch effect overlay for primary/secondary -->
         <div v-if="variant === 'primary' || variant === 'secondary'"
-            class="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500 skew-x-12 z-0" />
+            class="absolute inset-0 bg-white/20 translate-x-[-150%] group-hover:translate-x-[150%] opacity-0 group-hover:opacity-100 transition-all duration-500 skew-x-12 z-0" />
 
         <span class="relative z-10 flex items-center gap-2">
             <slot />

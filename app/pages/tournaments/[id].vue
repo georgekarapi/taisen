@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Trophy, Shield, Zap, Users, Wallet } from 'lucide-vue-next'
 import { useBreadcrumbs } from '~/composables/useBreadcrumbs'
+import { useEnokiWallet } from '~/composables/useEnokiWallet'
 
 definePageMeta({
     layout: 'content'
@@ -8,10 +9,12 @@ definePageMeta({
 
 const route = useRoute()
 const tournamentId = route.params.id
+const { isConnected, truncatedAddress } = useEnokiWallet()
 
 // Static data for mockup
 const tournament = {
     title: 'Cyberpunk Clash 2077',
+    game: 'Cyberpunk TCG',
     status: 'Registration Open',
     format: 'TCG • Standard Format v2.1',
     description: 'Enter the grid. Battle for supremacy in the ultimate high-stakes TCG showdown. Winner takes the DAO governance token.',
@@ -38,7 +41,7 @@ const { setBreadcrumbs } = useBreadcrumbs()
 
 setBreadcrumbs([
     { label: 'Home', to: '/' },
-    { label: 'Tournaments', to: '/tournaments' },
+    { label: tournament.game, to: '/' },
     { label: tournament.title }
 ])
 </script>
@@ -232,7 +235,7 @@ setBreadcrumbs([
                         </div>
                         <div class="flex-1 min-w-0 relative z-10">
                             <div class="text-sm font-bold text-white truncate font-display tracking-wide">{{ user.name
-                            }}</div>
+                                }}</div>
                             <div class="text-[10px] uppercase tracking-wider text-slate-500">{{ user.title }}</div>
                         </div>
                     </div>
@@ -249,7 +252,7 @@ setBreadcrumbs([
         <!-- Sticky Footer -->
         <div class="fixed bottom-0 left-0 lg:left-20 right-0 p-0 z-40 pointer-events-none flex justify-center">
             <div
-                class="bg-[#0A0F1C]/95 backdrop-blur-xl border-t border-white/10 shadow-[0_-10px_40px_-15px_rgba(0,0,0,1)] w-full py-6 px-8 lg:px-12 flex flex-col md:flex-row items-center justify-between gap-6 pointer-events-auto">
+                class="bg-[#0A0F1C]/95 backdrop-blur-xl border-t border-white/10 shadow-[0_-10px_40px_-15px_rgba(0,0,0,1)] w-full max-w-[1920px] py-6 px-8 lg:px-12 flex flex-col md:flex-row items-center justify-between gap-6 pointer-events-auto">
                 <div class="flex items-center gap-5">
                     <div
                         class="w-10 h-10 rounded bg-white/5 border border-white/10 flex items-center justify-center text-slate-400">
@@ -258,12 +261,20 @@ setBreadcrumbs([
                     <div>
                         <div class="text-slate-500 text-xs uppercase tracking-widest font-bold mb-1">Connection Status
                         </div>
-                        <div class="text-white font-bold text-sm flex items-center gap-2 font-display tracking-wide">
+                        <div v-if="!isConnected"
+                            class="text-white font-bold text-sm flex items-center gap-2 font-display tracking-wide">
                             Wallet Not Connected
                             <span class="relative flex h-2 w-2">
                                 <span
                                     class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                 <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                            </span>
+                        </div>
+                        <div v-else
+                            class="text-white font-bold text-sm flex items-center gap-2 font-display tracking-wide">
+                            <span class="text-green-400">{{ truncatedAddress }}</span>
+                            <span class="relative flex h-2 w-2">
+                                <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                             </span>
                         </div>
                     </div>

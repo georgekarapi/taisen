@@ -9,9 +9,9 @@ const props = withDefaults(defineProps<{
 
 <template>
     <div class="card-chip" :class="{
-        'text-status-live border-status-live bg-status-live/10 live-pulse': variant === 'live',
-        'text-status-upcoming border-status-upcoming bg-status-upcoming/20': variant === 'upcoming' || variant === 'default',
-        'text-status-ended border-status-ended bg-status-ended/20': variant === 'ended'
+        'text-white border-status-live bg-status-live/20 live-pulse': variant === 'live',
+        'text-status-upcoming border-status-upcoming bg-status-upcoming/10': variant === 'upcoming' || variant === 'default',
+        'text-status-ended border-status-ended bg-status-ended/10': variant === 'ended'
     }">
         <span v-if="variant === 'live'" class="dot">● </span>
         <slot>{{ label }}</slot>
