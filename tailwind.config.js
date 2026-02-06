@@ -32,6 +32,11 @@ module.exports = {
           purple: "#bc13fe",
           gray: "#6e7f91",
         },
+        status: {
+          live: "#ff003c",
+          upcoming: "#00f0ff",
+          ended: "#4b5563",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

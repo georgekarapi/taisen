@@ -6,7 +6,11 @@
     <CommonSidebar />
 
     <main class="relative flex-1 overflow-y-auto p-8">
+      <div class="absolute top-8 right-8 z-30 pointer-events-auto">
+        <CommonUserActions />
+      </div>
       <slot />
     </main>
   </div>
+
 </template>

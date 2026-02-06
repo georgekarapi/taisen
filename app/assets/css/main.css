@@ -43,6 +43,38 @@
   
   .text-glow-cyan { text-shadow: 0 0 10px rgba(0, 240, 255, 0.7); }
   .text-glow-red { text-shadow: 0 0 10px rgba(255, 0, 60, 0.7); }
+
+  .clip-corner {
+    clip-path: polygon(
+        20px 0, 
+        100% 0, 
+        100% calc(100% - 20px), 
+        calc(100% - 20px) 100%, 
+        0 100%, 
+        0 20px
+    );
+  }
+
+  .clip-corner-sm {
+    clip-path: polygon(
+        8px 0, 
+        100% 0, 
+        100% calc(100% - 8px), 
+        calc(100% - 8px) 100%, 
+        0 100%, 
+        0 8px
+    );
+  }
+
+  .cyber-clip-corner-top {
+      clip-path: polygon(
+          20px 0, 
+          100% 0, 
+          100% 100%, 
+          0 100%, 
+          0 20px
+      );
+  }
 }
 
 @layer components {

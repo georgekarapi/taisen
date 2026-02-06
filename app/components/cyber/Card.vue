@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Trophy } from 'lucide-vue-next'
-import { computed } from 'vue'
-import CardChip from './CardChip.vue'
+
 
 interface Tournament {
     id: number
@@ -14,21 +13,14 @@ interface Tournament {
     countdown: string
 }
 
-const props = defineProps<{
+defineProps<{
     tournament: Tournament
 }>()
-
-const statusColors = {
-    LIVE: '#ff003c', // cyber-red
-    UPCOMING: '#00f0ff', // cyber-cyan
-    ENDED: '#4b5563' // gray-600
-}
-
-const color = computed(() => statusColors[props.tournament.status])
 </script>
 
 <template>
-    <div class="cyber-card cursor-pointer clip-corner-br group flex min-h-[380px] flex-col p-[1px] transition-all duration-300"
+    <NuxtLink :to="`/tournaments/${tournament.id}`"
+        class="cyber-card cursor-pointer clip-corner-br group flex min-h-[380px] flex-col p-[1px] transition-all duration-300"
         :class="[
             tournament.status.toLowerCase(),
             { 'opacity-90 hover:opacity-100': tournament.status === 'ENDED' }
@@ -42,7 +34,7 @@ const color = computed(() => statusColors[props.tournament.status])
                 <div class="absolute inset-0 bg-gradient-to-t from-cyber-dark to-transparent" />
 
                 <div class="absolute right-3 top-3">
-                    <CardChip :status="tournament.status" :color="color" />
+                    <CyberChip :variant="tournament.status.toLowerCase()">{{ tournament.status }}</CyberChip>
                 </div>
             </div>
 
@@ -76,15 +68,26 @@ const color = computed(() => statusColors[props.tournament.status])
                 </div>
             </div>
         </div>
-    </div>
+    </NuxtLink>
+
 </template>
 
 <style scoped>
 .cyber-card {
-    --status-color: v-bind(color);
-    /* The clip-corner-br is defined in main.css as a utility, 
-       but we can also use it here for better encapsulation if needed.
-       For now, we rely on the utility class in the template. */
+    /* Default fallback */
+    --status-color: theme('colors.status.upcoming');
+}
+
+.cyber-card.live {
+    --status-color: theme('colors.status.live');
+}
+
+.cyber-card.upcoming {
+    --status-color: theme('colors.status.upcoming');
+}
+
+.cyber-card.ended {
+    --status-color: theme('colors.status.ended');
 }
 
 /* Base card border gradient using v-bind color */

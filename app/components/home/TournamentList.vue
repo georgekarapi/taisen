@@ -69,7 +69,7 @@ const tournaments = [
         </div>
 
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-            <CommonCyberCard v-for="tournament in tournaments" :key="tournament.id" :tournament="tournament" />
+            <CyberCard v-for="tournament in tournaments" :key="tournament.id" :tournament="tournament" />
         </div>
     </section>
 </template>

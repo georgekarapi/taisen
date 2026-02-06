@@ -5,7 +5,7 @@ import { ArrowRight } from 'lucide-vue-next'
 
 <template>
     <section
-        class="clip-corner-hero group relative mb-12 h-[400px] w-full overflow-hidden border-b-2 border-r-2 border-cyber-panel">
+        class="clip-corner-hero group relative mt-16 mb-12 h-[400px] w-full overflow-hidden border-b-2 border-r-2 border-cyber-panel">
         <!-- Background Image -->
         <div class="absolute inset-0 bg-cover bg-center"
             style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCgAf44kPLXdojhW3qd9Hj24ZoE8c3sgbMpCiavhNnqtb_4qzUaHiLOkojt_tnYmIHozEcSj5mfiSr1DYcsLIv8ENRUavjyhA1p8RTSOyhBhwVF4qcy15aNKwvtO2kLtKH6MrsvGkWTtqpLO-ldWjy8VYNaB7rB9hgOTDzSRpYUNGtXJD-e-oZeiC3zxlB1uj7pV5pXskDimgpuW-FGh7UEnZQuB_Y1cpmu3KLHwDMXOd2q8TC07sE6WEwZPAukNqplh5nF_tnHZqg');">

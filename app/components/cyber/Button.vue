@@ -1,26 +1,46 @@
 <script setup lang="ts">
-import { Button } from '@/components/ui/button'
-
-interface Props {
-    variant?: 'outline' | 'ghost' | 'secondary' | 'link' | 'default' | 'destructive'
-    size?: 'default' | 'sm' | 'lg' | 'icon'
-    asChild?: boolean
-}
-
-withDefaults(defineProps<Props>(), {
-    variant: 'default',
-    size: 'default',
-    asChild: false,
-})
+defineProps<{
+    variant?: 'primary' | 'secondary' | 'outline' | 'ghost'
+    block?: boolean
+}>()
 </script>
 
 <template>
-    <Button :variant="variant" :size="size" :class="[
-        'btn-glitch relative overflow-hidden bg-transparent font-display font-bold tracking-wider text-white transition-colors duration-300 hover:bg-cyber-cyan/10',
-        $attrs.class
-    ]">
-        <slot />
-        <span
-            class="absolute inset-0 z-[-1] border border-cyber-cyan shadow-[0_0_5px_#00f0ff] [clip-path:polygon(10px_0,100%_0,100%_calc(100%-10px),calc(100%-10px)_100%,0_100%,0_10px)]" />
-    </Button>
+    <button
+        class="cyber-button relative font-display font-bold uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 group"
+        :class="[
+            variant === 'primary' ? 'bg-cyber-red text-white hover:bg-red-600 shadow-neon-red' : '',
+            variant === 'secondary' ? 'bg-cyber-cyan text-black hover:bg-cyan-400 shadow-neon-blue' : '',
+            variant === 'outline' ? 'bg-transparent border border-white/20 text-white hover:border-white hover:bg-white/5' : '',
+            variant === 'ghost' ? 'bg-transparent text-slate-400 hover:text-white' : '',
+            block ? 'w-full py-4' : 'px-6 py-3',
+            'clip-btn'
+        ]">
+        <!-- Glitch effect overlay for primary/secondary -->
+        <div v-if="variant === 'primary' || variant === 'secondary'"
+            class="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500 skew-x-12 z-0" />
+
+        <span class="relative z-10 flex items-center gap-2">
+            <slot />
+        </span>
+    </button>
 </template>
+
+<style scoped>
+.clip-btn {
+    clip-path: polygon(10px 0,
+            100% 0,
+            100% calc(100% - 10px),
+            calc(100% - 10px) 100%,
+            0 100%,
+            0 10px);
+}
+
+.shadow-neon-red {
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+}
+
+.shadow-neon-blue {
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+}
+</style>

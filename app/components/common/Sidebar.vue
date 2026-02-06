@@ -11,15 +11,16 @@ import { Home, Calendar, Users, Trophy, Settings } from 'lucide-vue-next'
         </div>
 
         <div class="flex w-full flex-col gap-6">
-            <a href="#"
-                class="sidebar-active group flex h-14 w-full items-center justify-center transition-all duration-300">
+            <NuxtLink to="/" class="group flex h-14 w-full items-center justify-center transition-all duration-300"
+                active-class="sidebar-active">
                 <Home class="h-6 w-6" />
-            </a>
+            </NuxtLink>
 
-            <a href="#"
-                class="flex h-14 w-full items-center justify-center text-white/40 transition-all duration-300 hover:text-white">
+            <NuxtLink to="/analytics"
+                class="flex h-14 w-full items-center justify-center text-white/40 transition-all duration-300 hover:text-white"
+                active-class="sidebar-active">
                 <Users class="h-6 w-6" />
-            </a>
+            </NuxtLink>
 
             <a href="#"
                 class="flex h-14 w-full items-center justify-center text-white/40 transition-all duration-300 hover:text-white">
