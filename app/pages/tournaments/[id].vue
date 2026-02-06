@@ -1,49 +1,116 @@
 <script setup lang="ts">
-import { Trophy, Shield, Zap, Users, Wallet } from 'lucide-vue-next'
+import { Trophy, Shield, Zap, Users, Wallet, Loader2 } from 'lucide-vue-next'
 import { useBreadcrumbs } from '~/composables/useBreadcrumbs'
 import { useWallet } from '~/composables/useWallet'
+import { formatSui, truncateAddress } from '~/types/tournament'
 
 definePageMeta({
     layout: 'content'
 })
 
 const route = useRoute()
-const tournamentId = route.params.id
-const { isConnected, truncatedAddress } = useWallet()
-
-// Static data for mockup
-const tournament = {
-    title: 'Cyberpunk Clash 2077',
-    game: 'Cyberpunk TCG',
-    status: 'Registration Open',
-    format: 'TCG • Standard Format v2.1',
-    description: 'Enter the grid. Battle for supremacy in the ultimate high-stakes TCG showdown. Winner takes the DAO governance token.',
-    timer: '04:12:45',
-    prizePool: {
-        total: '$15,400',
-        entry: '100 USDC',
-        sponsor: '5,000 USDC',
-        fee: '2.5%'
-    },
-    requirements: [
-        { label: 'Account Level', value: 'Minimum Level 20 required' },
-        { label: 'Collection', value: 'Must own 1 "Legendary" Card' },
-        { label: 'Rank', value: 'Ranked Gold III or higher' }
-    ],
-    participants: [
-        { id: 1, name: '0x71C...9A2', title: 'Lvl 45 • Gladiator' },
-        { id: 2, name: '0x3B2...1F4', title: 'Lvl 32 • Rogue' },
-        { id: 3, name: '0xA91...77B', title: 'Lvl 60 • Master' }
-    ]
-}
-
+const tournamentId = route.params.id as string
+const { isConnected, truncatedAddress: walletAddress, address: fullAddress } = useWallet()
+const { fetchTournament, toDisplayFormat, registerForTournament, loading, error } = useTournaments()
+const { games } = useGames()
 const { setBreadcrumbs } = useBreadcrumbs()
 
-setBreadcrumbs([
-    { label: 'Home', to: '/' },
-    { label: tournament.game, to: '/' },
-    { label: tournament.title }
-])
+// Tournament data
+const tournament = ref<any>(null)
+const displayTournament = ref<any>(null)
+const registering = ref(false)
+
+// Fetch tournament on mount
+onMounted(async () => {
+    const data = await fetchTournament(tournamentId)
+    if (data) {
+        tournament.value = data
+        displayTournament.value = toDisplayFormat(data)
+
+        // Set breadcrumbs
+        const game = games.find(g => g.slug === data.gameType)
+        setBreadcrumbs([
+            { label: 'Home', to: '/' },
+            { label: game?.title || data.gameType, to: '/' },
+            { label: data.name }
+        ])
+    }
+})
+
+// Computed values for display
+const prizePool = computed(() => {
+    if (!tournament.value) return { total: '0', entry: '0', sponsor: '0' }
+    const total = tournament.value.sponsorPool + tournament.value.playerPool
+    return {
+        total: formatSui(total),
+        entry: formatSui(tournament.value.entryFee),
+        sponsor: formatSui(tournament.value.sponsorPool),
+    }
+})
+
+const statusDisplay = computed(() => {
+    if (!displayTournament.value) return { text: 'Loading', color: 'gray' }
+    const status = displayTournament.value.status
+    const colors: Record<string, string> = {
+        'LIVE': 'green',
+        'UPCOMING': 'blue',
+        'ENDED': 'gray'
+    }
+    return { text: status, color: colors[status] || 'gray' }
+})
+
+const timerDisplay = computed(() => {
+    if (!tournament.value) return '00:00:00'
+    const now = Date.now()
+    const date = tournament.value.date
+
+    if (date <= now) return 'Started'
+
+    const diff = date - now
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+})
+
+const participantsList = computed(() => {
+    if (!tournament.value) return []
+    return tournament.value.participants.map((addr: string, idx: number) => ({
+        id: idx,
+        name: truncateAddress(addr),
+        title: 'Participant'
+    }))
+})
+
+const isRegistered = computed(() => {
+    if (!tournament.value || !fullAddress.value) return false
+    return tournament.value.participants.includes(fullAddress.value)
+})
+
+const isGM = computed(() => {
+    if (!tournament.value || !fullAddress.value) return false
+    return tournament.value.gameMaster === fullAddress.value
+})
+
+async function handleRegister() {
+    if (!tournament.value || !isConnected.value) return
+
+    try {
+        registering.value = true
+        const success = await registerForTournament(tournamentId, tournament.value.entryFee)
+        if (success) {
+            // Re-fetch to update UI
+            const data = await fetchTournament(tournamentId)
+            if (data) {
+                tournament.value = data
+                displayTournament.value = toDisplayFormat(data)
+            }
+        }
+    } finally {
+        registering.value = false
+    }
+}
 </script>
 
 <template>
@@ -53,7 +120,22 @@ setBreadcrumbs([
             class="absolute top-0 right-0 w-[500px] h-[500px] bg-accent-blue/5 rounded-full blur-[120px] pointer-events-none z-0">
         </div>
 
-        <div>
+        <!-- Loading State -->
+        <div v-if="loading" class="flex items-center justify-center min-h-[400px]">
+            <Loader2 class="w-8 h-8 text-primary animate-spin" />
+            <span class="ml-3 text-slate-400 font-display uppercase tracking-wider">Loading tournament...</span>
+        </div>
+
+        <!-- Error State -->
+        <div v-else-if="error" class="flex items-center justify-center min-h-[400px]">
+            <div class="text-center">
+                <div class="text-red-400 font-display uppercase tracking-wider mb-2">Error</div>
+                <div class="text-slate-500 text-sm">{{ error }}</div>
+            </div>
+        </div>
+
+        <!-- Tournament Content -->
+        <div v-else-if="tournament">
 
             <!-- Hero -->
             <div
@@ -62,20 +144,28 @@ setBreadcrumbs([
 
                 <div class="relative">
                     <div class="flex items-center gap-4 mb-4">
-                        <div
-                            class="inline-flex items-center gap-2 px-3 py-1 rounded bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-bold tracking-[0.2em] uppercase shadow-[0_0_10px_rgba(34,197,94,0.1)]">
-                            <span
-                                class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_5px_#22c55e]"></span>
-                            {{ tournament.status }}
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-bold tracking-[0.2em] uppercase shadow-[0_0_10px_rgba(34,197,94,0.1)]"
+                            :class="{
+                                'bg-green-500/10 border-green-500/20 text-green-400': statusDisplay.color === 'green',
+                                'bg-blue-500/10 border-blue-500/20 text-blue-400': statusDisplay.color === 'blue',
+                                'bg-gray-500/10 border-gray-500/20 text-gray-400': statusDisplay.color === 'gray'
+                            }">
+                            <span class="w-1.5 h-1.5 rounded-full animate-pulse shadow-[0_0_5px_currentColor]" :class="{
+                                'bg-green-500': statusDisplay.color === 'green',
+                                'bg-blue-500': statusDisplay.color === 'blue',
+                                'bg-gray-500': statusDisplay.color === 'gray'
+                            }"></span>
+                            {{ statusDisplay.text }}
                         </div>
                         <span
-                            class="text-slate-500 font-display tracking-widest text-xs uppercase border-l border-white/10 pl-4">{{
-                                tournament.format }}</span>
+                            class="text-slate-500 font-display tracking-widest text-xs uppercase border-l border-white/10 pl-4">
+                            {{ displayTournament?.game }}
+                        </span>
                     </div>
 
                     <h1
                         class="text-5xl lg:text-7xl font-display font-black text-white uppercase tracking-tighter leading-none mb-4 drop-shadow-xl relative z-10">
-                        Cyberpunk Clash 2077
+                        {{ tournament.name }}
                     </h1>
 
                     <p class="text-slate-400 max-w-2xl text-lg font-light border-l-2 border-primary/50 pl-4">
@@ -87,11 +177,13 @@ setBreadcrumbs([
                 <div
                     class="flex flex-row xl:flex-col items-center xl:items-end gap-6 xl:gap-2 bg-surface-dark/50 p-4 rounded-lg border border-white/5">
                     <div class="text-right">
-                        <div class="text-[10px] text-slate-500 uppercase tracking-[0.2em] mb-1">Registration Ends In
+                        <div class="text-[10px] text-slate-500 uppercase tracking-[0.2em] mb-1">
+                            {{ displayTournament?.status === 'UPCOMING' ? 'Starts In' : 'Tournament Status' }}
                         </div>
                         <div
                             class="font-display text-3xl text-white font-bold tracking-widest tabular-nums text-glow-red font-mono">
-                            {{ tournament.timer }}</div>
+                            {{ timerDisplay }}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -118,14 +210,14 @@ setBreadcrumbs([
                                 <div
                                     class="flex justify-between items-center text-sm border-b border-dashed border-white/10 pb-3">
                                     <span class="text-slate-400">Entry Fee</span>
-                                    <span class="font-display font-bold text-white tracking-wide">{{
-                                        tournament.prizePool.entry }}</span>
+                                    <span class="font-display font-bold text-white tracking-wide">
+                                        {{ prizePool.entry }}
+                                    </span>
                                 </div>
                                 <div
                                     class="flex justify-between items-center text-sm border-b border-dashed border-white/10 pb-3">
                                     <span class="text-slate-400">Sponsor Contribution</span>
-                                    <span class="font-display font-bold text-green-400">+ {{
-                                        tournament.prizePool.sponsor }}</span>
+                                    <span class="font-display font-bold text-green-400">+ {{ prizePool.sponsor }}</span>
                                 </div>
                                 <div class="mt-4 pt-4 bg-black/40 -mx-6 px-6 pb-6 mb-[-24px] border-t border-white/5">
                                     <div class="flex justify-between items-end">
@@ -133,32 +225,42 @@ setBreadcrumbs([
                                             class="text-slate-500 uppercase text-[10px] tracking-widest font-bold mb-1">Total
                                             Pool Value</span>
                                         <span
-                                            class="font-display font-black text-4xl text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">{{
-                                                tournament.prizePool.total }}</span>
+                                            class="font-display font-black text-4xl text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">
+                                            {{ prizePool.total }}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </CyberPanel>
 
-                    <!-- Requirements -->
+                    <!-- Tournament Info -->
                     <div class="bg-surface-dark/50 border border-white/5 p-6 rounded-sm relative">
                         <div class="flex items-center gap-2 mb-6 text-slate-200">
                             <Shield class="w-5 h-5 text-slate-500" />
-                            <h3 class="font-display text-base font-bold uppercase tracking-wider">Entry Requirements
+                            <h3 class="font-display text-base font-bold uppercase tracking-wider">Tournament Info
                             </h3>
                         </div>
                         <ul class="space-y-4">
-                            <li v-for="(req, idx) in tournament.requirements" :key="idx"
-                                class="flex items-start gap-4 group">
-                                <div
-                                    class="w-5 h-5 rounded bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-primary/20 transition-colors">
-                                    <span class="text-primary text-xs">✓</span>
+                            <li class="flex items-start gap-4 group">
+                                <div class="text-sm text-slate-400">
+                                    <strong
+                                        class="block text-slate-200 text-xs uppercase tracking-wide mb-0.5">Location</strong>
+                                    {{ tournament.location || 'Online' }}
                                 </div>
-                                <div class="text-sm text-slate-400 group-hover:text-slate-300 transition-colors">
-                                    <strong class="block text-slate-200 text-xs uppercase tracking-wide mb-0.5">{{
-                                        req.label }}</strong>
-                                    {{ req.value }}
+                            </li>
+                            <li class="flex items-start gap-4 group">
+                                <div class="text-sm text-slate-400">
+                                    <strong class="block text-slate-200 text-xs uppercase tracking-wide mb-0.5">Game
+                                        Master</strong>
+                                    {{ truncateAddress(tournament.gameMaster) }}
+                                </div>
+                            </li>
+                            <li class="flex items-start gap-4 group">
+                                <div class="text-sm text-slate-400">
+                                    <strong
+                                        class="block text-slate-200 text-xs uppercase tracking-wide mb-0.5">Date</strong>
+                                    {{ displayTournament?.date?.toLocaleDateString() }}
                                 </div>
                             </li>
                         </ul>
@@ -177,30 +279,33 @@ setBreadcrumbs([
                         </div>
                         <div class="prose prose-invert prose-lg max-w-none text-slate-400">
                             <p class="leading-relaxed">
-                                Welcome to the <span class="text-white font-medium">Cyberpunk Clash 2077</span>. This is
-                                a single-elimination tournament hosted on the CyberArena chain. Players will compete in
-                                a best-of-3 format until the semi-finals, which will be best-of-5.
+                                {{ tournament.description }}
                             </p>
-                            <!-- Using raw HTML for simplified brief content as per mockup text -->
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
                                 <div>
                                     <h4
                                         class="font-display text-sm uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
                                         <span class="w-1 h-4 bg-primary"></span>
-                                        Rules of Engagement
+                                        Tournament Details
                                     </h4>
                                     <ul class="space-y-2 text-sm list-none pl-0">
-                                        <li class="flex items-center gap-2"><span
-                                                class="w-1 h-1 bg-slate-500 rounded-full"></span> Disconnections > 5
-                                            mins = Loss</li>
-                                        <li class="flex items-center gap-2"><span
-                                                class="w-1 h-1 bg-slate-500 rounded-full"></span> Streaming delay: 3
-                                            minutes</li>
+                                        <li class="flex items-center gap-2">
+                                            <span class="w-1 h-1 bg-slate-500 rounded-full"></span>
+                                            Game: {{ displayTournament?.game }}
+                                        </li>
+                                        <li class="flex items-center gap-2">
+                                            <span class="w-1 h-1 bg-slate-500 rounded-full"></span>
+                                            Entry Fee: {{ prizePool.entry }}
+                                        </li>
+                                        <li class="flex items-center gap-2">
+                                            <span class="w-1 h-1 bg-slate-500 rounded-full"></span>
+                                            Participants: {{ tournament.participants.length }}
+                                        </li>
                                     </ul>
                                 </div>
                                 <div class="bg-accent-blue/5 border border-accent-blue/10 p-4 rounded relative">
                                     <p class="text-sm font-medium italic text-slate-300 relative z-10 pl-4 pt-2">
-                                        "Victory belongs to the most synchronized mind. Prepare your neural link."
+                                        "Victory belongs to the prepared. Good luck to all participants."
                                     </p>
                                 </div>
                             </div>
@@ -217,40 +322,42 @@ setBreadcrumbs([
                         <span class="w-2 h-8 bg-gradient-to-b from-primary to-purple-600 rounded-sm"></span>
                         Participants
                         <span
-                            class="text-xs bg-white/5 border border-white/10 text-slate-300 px-3 py-1 rounded-sm font-body font-bold">12
-                            / 32 REGISTERED</span>
+                            class="text-xs bg-white/5 border border-white/10 text-slate-300 px-3 py-1 rounded-sm font-body font-bold">
+                            {{ tournament.participants.length }} REGISTERED
+                        </span>
                     </h3>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <div v-for="user in tournament.participants" :key="user.id"
+                    <div v-for="user in participantsList" :key="user.id"
                         class="bg-[#0A0F1C] border border-white/5 p-4 rounded-sm flex items-center gap-4 hover:border-accent-blue/50 transition-all group cursor-pointer relative overflow-hidden">
                         <div
                             class="absolute inset-0 bg-accent-blue/5 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                         </div>
                         <div class="relative w-10 h-10 rounded bg-gradient-to-br from-blue-500 to-purple-600 p-[1px]">
                             <div class="w-full h-full bg-black rounded overflow-hidden">
-                                <!-- Placeholder avatar -->
                                 <div class="w-full h-full bg-gray-800"></div>
                             </div>
                         </div>
                         <div class="flex-1 min-w-0 relative z-10">
                             <div class="text-sm font-bold text-white truncate font-display tracking-wide">{{ user.name
-                            }}</div>
+                            }}
+                            </div>
                             <div class="text-[10px] uppercase tracking-wider text-slate-500">{{ user.title }}</div>
                         </div>
                     </div>
                     <!-- Open slot -->
-                    <div
+                    <div v-if="tournament.participants.length === 0"
                         class="bg-black/20 border border-white/5 border-dashed p-4 rounded-sm flex items-center justify-center gap-3 opacity-60">
-                        <span class="text-[10px] text-slate-500 font-display tracking-[0.2em] uppercase">Open
-                            Slot</span>
+                        <span class="text-[10px] text-slate-500 font-display tracking-[0.2em] uppercase">No Participants
+                            Yet</span>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Sticky Footer -->
-        <div class="fixed bottom-0 left-0 lg:left-20 right-0 p-0 z-40 pointer-events-none flex justify-center">
+        <div v-if="!isRegistered && displayTournament?.status !== 'ENDED'"
+            class="fixed bottom-0 left-0 lg:left-20 right-0 p-0 z-40 pointer-events-none flex justify-center">
             <div
                 class="bg-[#0A0F1C]/95 backdrop-blur-xl border-t border-white/10 shadow-[0_-10px_40px_-15px_rgba(0,0,0,1)] w-full max-w-[1920px] py-6 px-8 lg:px-12 flex flex-col md:flex-row items-center justify-between gap-6 pointer-events-auto">
                 <div class="flex items-center gap-5">
@@ -272,7 +379,7 @@ setBreadcrumbs([
                         </div>
                         <div v-else
                             class="text-white font-bold text-sm flex items-center gap-2 font-display tracking-wide">
-                            <span class="text-green-400">{{ truncatedAddress }}</span>
+                            <span class="text-green-400">{{ walletAddress }}</span>
                             <span class="relative flex h-2 w-2">
                                 <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                             </span>
@@ -280,16 +387,23 @@ setBreadcrumbs([
                     </div>
                 </div>
                 <div class="flex flex-col md:flex-row items-center gap-6 w-full md:w-auto">
-                    <p class="text-xs text-slate-500 hidden md:block text-right">Registration requires 100 USDC + Gas
+                    <p v-if="tournament" class="text-xs text-slate-500 hidden md:block text-right">
+                        Registration requires {{ prizePool.entry }} + Gas
                     </p>
-                    <CyberButton variant="primary" class="w-full md:w-auto pl-10 pr-8 py-4">
-                        Register Now
+                    <CyberButton variant="primary" class="w-full md:w-auto pl-10 pr-8 py-4"
+                        :disabled="!isConnected || registering" @click="handleRegister">
+                        <div v-if="registering" class="flex items-center gap-2">
+                            <Loader2 class="w-4 h-4 animate-spin" />
+                            <span>Processing...</span>
+                        </div>
+                        <span v-else>Register Now</span>
                     </CyberButton>
                 </div>
             </div>
         </div>
 
     </div>
+
 </template>
 
 <style scoped>

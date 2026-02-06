@@ -28,7 +28,7 @@ const GAMES = [
     { title: "Yu-gi-oh!", slug: "yu-gi-oh" },
     { title: "Magic: The Gathering", slug: "magic-the-gathering" },
     { title: "Shadowverse", slug: "shadowverse" },
-    { title: "Riftbount", slug: "riftbount" },
+    { title: "Riftbound", slug: "riftbound" },
     { title: "Parallel", slug: "parallel" },
 ];
 
@@ -63,10 +63,10 @@ const TOURNAMENT_TEMPLATES = [
         sponsorAmount: 200_000_000n,
     },
     {
-        name: "Riftbount Launch Tournament",
-        gameSlug: "riftbount",
+        name: "Riftbound Launch Tournament",
+        gameSlug: "riftbound",
         location: "Virtual Arena",
-        description: "Celebrate the launch of Riftbount with an inaugural tournament!",
+        description: "Celebrate the launch of Riftbound with an inaugural tournament!",
         entryFee: 0n, // Free entry
         gmFee: 0,
         sponsorAmount: 1_000_000_000n, // 1 SUI prize pool

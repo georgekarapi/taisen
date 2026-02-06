@@ -19,7 +19,7 @@ module tournament_platform::platform_config_tests {
         test_scenario::next_tx(&mut scenario, ADMIN);
         {
             let config = test_scenario::take_shared<PlatformConfig>(&scenario);
-            assert!(platform_config::get_creation_fee(&config) == 5_000_000_000, 0);
+            assert!(platform_config::get_creation_fee(&config) == 1_000_000_000, 0);
             assert!(platform_config::get_platform_fee_bps(&config) == 150, 1);
             test_scenario::return_shared(config);
         };

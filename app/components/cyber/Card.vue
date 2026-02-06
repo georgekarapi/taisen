@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { Trophy } from 'lucide-vue-next'
-
+import { Card } from '@/components/ui/card' // Import Card
 
 interface Tournament {
-    id: number
+    id: number | string
     title: string
     game: string
     image: string
-    status: 'LIVE' | 'UPCOMING' | 'ENDED'
+    status: string // 'LIVE' | 'UPCOMING' | 'ENDED'
     prizepool: string
     teams: string
     countdown: string
@@ -25,16 +25,17 @@ defineProps<{
             tournament.status.toLowerCase(),
             { 'opacity-90 hover:opacity-100': tournament.status === 'ENDED' }
         ]">
-        <div class="clip-corner-br relative flex h-full flex-col overflow-hidden bg-cyber-dark">
+        <Card
+            class="clip-corner-br relative flex h-full flex-col overflow-hidden bg-cyber-dark border-none rounded-none shadow-none">
             <div class="relative h-48 w-full overflow-hidden transition-all duration-500"
                 :class="{ 'grayscale': tournament.status === 'ENDED' }">
-                <img :src="tournament.image" :alt="tournament.game"
+                <NuxtImg :src="tournament.image" :alt="tournament.game"
                     class="h-full w-full object-cover opacity-80 transition-transform duration-500 group-hover:scale-110 group-hover:opacity-100"
                     :class="{ 'opacity-60': tournament.status === 'ENDED' }" />
                 <div class="absolute inset-0 bg-gradient-to-t from-cyber-dark to-transparent" />
 
                 <div class="absolute right-3 top-3">
-                    <CyberChip :variant="tournament.status.toLowerCase()">{{ tournament.status }}</CyberChip>
+                    <CyberChip :variant="tournament.status.toLowerCase() as any">{{ tournament.status }}</CyberChip>
                 </div>
             </div>
 
@@ -67,7 +68,8 @@ defineProps<{
                     </span>
                 </div>
             </div>
-        </div>
+        </Card>
+
     </NuxtLink>
 
 </template>

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 
+const { games } = useGames()
+
 const formData = ref({
-    game: 'Cyberpunk Clash 2077 TCG',
+    game: games[0]?.slug || '',
     name: '',
     region: 'Global (Net)',
     launchTime: '',
@@ -68,20 +70,11 @@ const totalCost = computed(() => {
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div class="col-span-1 md:col-span-2">
-                                <label
-                                    class="block text-xs font-bold uppercase tracking-widest text-secondary mb-2 flex justify-between">
-                                    Game Protocol <span class="text-[10px] text-slate-600">REQ*</span>
-                                </label>
-                                <div class="relative group/input">
-                                    <select v-model="formData.game"
-                                        class="w-full bg-black/60 border border-slate-700 text-slate-100 p-4 pl-4 pr-10 focus:border-secondary focus:ring-0 outline-none appearance-none font-medium transition-all font-display tracking-wide focus:shadow-[0_0_10px_rgba(6,182,212,0.2)]">
-                                        <option>Cyberpunk Clash 2077 TCG</option>
-                                        <option>Magic: The Gathering (Neon Dynasty)</option>
-                                        <option>Netrunner</option>
-                                        <option>Yu-Gi-Oh! Master Duel</option>
-                                    </select>
-                                    <!-- Custom arrow would go here in full implementation -->
-                                </div>
+                                <CyberSelect v-model="formData.game" label="Game Protocol" required>
+                                    <option v-for="game in games" :key="game.slug" :value="game.slug">
+                                        {{ game.title }}
+                                    </option>
+                                </CyberSelect>
                             </div>
 
                             <div class="col-span-1 md:col-span-2">
@@ -90,16 +83,12 @@ const totalCost = computed(() => {
                             </div>
 
                             <div>
-                                <label
-                                    class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Region
-                                    Coordinates</label>
-                                <select v-model="formData.region"
-                                    class="w-full bg-black/60 border border-slate-700 text-slate-100 p-4 focus:border-secondary outline-none appearance-none font-medium transition-all font-display">
+                                <CyberSelect v-model="formData.region" label="Region Coordinates">
                                     <option>Global (Net)</option>
                                     <option>NA - West Sector</option>
                                     <option>EU - Central Core</option>
                                     <option>APAC - Rim</option>
-                                </select>
+                                </CyberSelect>
                             </div>
 
                             <div>
@@ -108,13 +97,8 @@ const totalCost = computed(() => {
                             </div>
 
                             <div class="col-span-1 md:col-span-2">
-                                <label
-                                    class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Briefing
-                                    Data</label>
-                                <textarea v-model="formData.description"
-                                    class="w-full bg-black/60 border border-slate-700 text-slate-100 p-4 focus:border-secondary focus:ring-0 outline-none font-medium transition-all placeholder-slate-600 font-body"
-                                    placeholder="Define engagement rules, prize pools, and operational constraints..."
-                                    rows="4"></textarea>
+                                <CyberTextarea v-model="formData.description" label="Briefing Data"
+                                    placeholder="Define engagement rules, prize pools, and operational constraints..." />
                             </div>
                         </div>
                     </CyberPanel>
@@ -129,26 +113,14 @@ const totalCost = computed(() => {
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-widest text-primary mb-2">Entry
-                                    Fee (SUI)</label>
-                                <div class="relative group">
-                                    <input v-model="formData.entryFee"
-                                        class="w-full bg-black/60 border border-primary/50 text-white p-4 pl-4 pr-12 focus:border-primary focus:ring-0 outline-none font-display font-bold text-lg transition-all shadow-[0_0_10px_rgba(255,42,109,0.1)] focus:shadow-[0_0_15px_rgba(255,42,109,0.2)]"
-                                        min="0" type="number" />
-                                    <span class="absolute right-4 top-4 text-xs font-bold text-primary pt-1">SUI</span>
-                                </div>
+                                <CyberInput v-model="formData.entryFee" label="Entry Fee" suffix="SUI" type="number"
+                                    min="0" variant="primary" />
                                 <p class="text-[10px] text-slate-500 mt-2 font-mono uppercase">>> Paid by participants
                                 </p>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">GM
-                                    Allocation (%)</label>
-                                <div class="relative">
-                                    <input v-model="formData.gmAllocation"
-                                        class="w-full bg-black/60 border border-slate-700 text-slate-100 p-4 pl-4 pr-12 focus:border-secondary focus:ring-0 outline-none font-display font-bold text-lg transition-all"
-                                        max="100" min="0" type="number" />
-                                    <span class="absolute right-4 top-4 text-xs font-bold text-slate-500 pt-1">%</span>
-                                </div>
+                                <CyberInput v-model="formData.gmAllocation" label="GM Allocation" suffix="%"
+                                    type="number" min="0" max="100" variant="primary" />
                                 <p class="text-[10px] text-slate-500 mt-2 font-mono uppercase">>> Organizer Cut</p>
                             </div>
                         </div>

@@ -244,6 +244,7 @@ export function useWallet() {
         address,
         truncatedAddress,
         activeWallet,
+        account: computed(() => state.value.account),
         accounts,
         isConnecting,
         error,

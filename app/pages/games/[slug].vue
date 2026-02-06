@@ -3,40 +3,14 @@ import { Trophy, Users, Zap, Calendar, ExternalLink } from 'lucide-vue-next'
 
 const route = useRoute()
 const slug = route.params.slug as string
+const { getGameBySlug } = useGames()
 
-// Game data mapping (usually this would come from an API)
-const games: Record<string, any> = {
-    'yu-gi-oh': {
-        title: 'Yu-Gi-Oh!',
-        banner: 'https://images.unsplash.com/photo-1622325048601-52ee6f5978a1?q=80&w=2000&auto=format&fit=crop',
-        logo: '🎴',
-        color: '#f59e0b'
-    },
-    'magic-the-gathering': {
-        title: 'Magic: The Gathering',
-        banner: 'https://images.unsplash.com/photo-1615967113110-38891a00a120?q=80&w=2000&auto=format&fit=crop',
-        logo: '🪄',
-        color: '#ef4444'
-    },
-    'shadowverse': {
-        title: 'Shadowverse',
-        banner: 'https://images.unsplash.com/photo-1642104704074-907c0698cbd9?q=80&w=2000&auto=format&fit=crop',
-        logo: '⚔️',
-        color: '#3b82f6'
-    },
-    'riftbount': {
-        title: 'Riftbount',
-        banner: 'https://images.unsplash.com/photo-1538370965046-79c0d6927485?q=80&w=2000&auto=format&fit=crop',
-        logo: '🌌',
-        color: '#8b5cf6'
-    }
-}
-
-const game = computed(() => games[slug] || {
+const game = computed(() => getGameBySlug(slug) || {
     title: slug.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
-    banner: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=2000&auto=format&fit=crop',
-    logo: '🎮',
-    color: '#10b981'
+    slug: slug,
+    banner: '~/assets/images/banners/default.jpg',
+    logo: '~/assets/images/game-icons/mtg.png', // Fallback
+    sidebarIcon: '~/assets/images/game-icons/mtg.png'
 })
 </script>
 
@@ -45,16 +19,17 @@ const game = computed(() => games[slug] || {
         <!-- Hero Section -->
         <div class="relative h-[400px] overflow-hidden">
             <div class="absolute inset-0">
-                <img :src="game.banner" :alt="game.title"
+                <NuxtImg :src="game.banner" :alt="game.title"
                     class="w-full h-full object-cover transform scale-105 blur-sm opacity-50" />
+
                 <div class="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent"></div>
             </div>
 
             <div class="relative container mx-auto px-6 h-full flex flex-col justify-end pb-12">
                 <div class="flex items-center gap-6 mb-4">
                     <div
-                        class="w-24 h-24 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center text-5xl shadow-neon-blue">
-                        {{ game.logo }}
+                        class="w-24 h-24 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center overflow-hidden shadow-neon-blue">
+                        <NuxtImg :src="game.logo" :alt="game.title" class="w-full h-full object-cover p-4" />
                     </div>
                     <div>
                         <h1

@@ -2,7 +2,7 @@
 import { Settings } from 'lucide-vue-next'
 const { games } = useGames()
 
-const sidebarGames = computed(() => games.value.filter(g => g.sidebarIcon))
+const sidebarGames = computed(() => games.filter(g => g.sidebarIcon))
 </script>
 
 <template>
@@ -17,7 +17,7 @@ const sidebarGames = computed(() => games.value.filter(g => g.sidebarIcon))
             <NuxtLink v-for="game in sidebarGames" :key="game.slug" :to="`/games/${game.slug}`"
                 class="group relative flex h-16 w-full items-center justify-center text-white/40 transition-all duration-300 hover:text-white"
                 active-class="sidebar-active">
-                <img :src="game.sidebarIcon" :alt="game.title" :class="[
+                <NuxtImg :src="game.sidebarIcon" :alt="game.title" :class="[
                     'h-12 w-12 rounded-xl object-cover transition-all duration-300',
                     $route.path.includes(game.slug) ? 'grayscale-0 border-2 border-white shadow-[0_0_10px_rgba(255,255,255,0.5)]' : 'grayscale-[0.5] group-hover:grayscale-0'
                 ]" />
