@@ -2,6 +2,7 @@
 import { Trophy, Shield, Zap, Users, Wallet, Loader2 } from 'lucide-vue-next'
 import { useBreadcrumbs } from '~/composables/useBreadcrumbs'
 import { useWallet } from '~/composables/useWallet'
+import UserAvatar from '~/components/common/UserAvatar.vue'
 // Utility functions (formatSui, truncateAddress) and types are now auto-imported or global
 
 definePageMeta({
@@ -39,12 +40,18 @@ onMounted(async () => {
 
 // Computed values for display
 const prizePool = computed(() => {
-    if (!tournament.value) return { total: '0', entry: '0', sponsor: '0' }
-    const total = tournament.value.sponsorPool + tournament.value.playerPool
+    if (!tournament.value) return { total: '0', entry: '0', sponsor: '0', hasSponsor: false, isFree: false }
+    const sponsor = BigInt(tournament.value.sponsorPool || 0)
+    const player = BigInt(tournament.value.playerPool || 0)
+    const entry = BigInt(tournament.value.entryFee || 0)
+    const total = sponsor + player
+
     return {
         total: formatSui(total),
-        entry: formatSui(tournament.value.entryFee),
-        sponsor: formatSui(tournament.value.sponsorPool),
+        entry: formatSui(entry),
+        sponsor: formatSui(sponsor),
+        hasSponsor: sponsor > 0n,
+        isFree: entry === 0n
     }
 })
 
@@ -57,7 +64,7 @@ const timerDisplay = computed(() => {
     const currentTime = now.value.getTime()
     const date = tournament.value.date
 
-    if (date <= currentTime) return 'In Progress'
+    if (date <= currentTime || displayTournament.value?.status === 'LIVE') return 'In Progress'
 
     const diff = date - currentTime
     const hours = Math.floor(diff / (1000 * 60 * 60))
@@ -104,6 +111,59 @@ async function handleRegister() {
         registering.value = false
     }
 }
+
+// Bracket Logic
+const bracketMatches = computed<BracketMatch[]>(() => {
+    if (!tournament.value || !tournament.value.matches) return []
+
+    return tournament.value.matches.map((m: ContractMatch) => {
+        const formatPlayer = (addr: string | null, isWinner: boolean, isLoser: boolean): BracketPlayer | null => {
+            if (!addr) return null
+            return {
+                id: addr,
+                name: truncateAddress(addr),
+                avatar: `https://api.dicebear.com/9.x/avataaars-neutral/svg?seed=${addr}`,
+                score: isWinner ? 1 : 0,
+                status: isWinner ? 'winner' : isLoser ? 'loser' : 'playing'
+            }
+        }
+
+        const p1IsWinner = m.winner === m.playerA
+        const p1IsLoser = m.winner && m.winner !== m.playerA
+        const p2IsWinner = m.winner === m.playerB
+        const p2IsLoser = m.winner && m.winner !== m.playerB
+
+        let status: BracketMatchStatus = 'pending'
+        if (m.status === 1) status = 'in_progress'
+        if (m.status === 2 || m.winner) status = 'completed'
+
+        return {
+            id: `match-${m.matchId}`,
+            roundId: `round-${m.round}`,
+            matchNumber: m.matchId,
+            players: [
+                formatPlayer(m.playerA, p1IsWinner, !!p1IsLoser),
+                formatPlayer(m.playerB, p2IsWinner, !!p2IsLoser)
+            ],
+            status,
+            nextMatchId: m.nextMatchId ? `match-${m.nextMatchId}` : undefined
+        }
+    })
+})
+
+const bracketRounds = computed<BracketRound[]>(() => {
+    const totalRounds = tournament.value?.totalRounds || 5
+    const currentRound = tournament.value?.currentRound || 1
+
+    const labels = ['Round 1', 'Round 2', 'Round 3', 'Semifinals', 'Finals']
+
+    return Array.from({ length: Math.min(totalRounds, 5) }, (_, i) => ({
+        id: `round-${i + 1}`,
+        label: labels[i] || `Round ${i + 1}`,
+        roundIndex: i,
+        isActive: i + 1 === currentRound
+    }))
+})
 </script>
 
 <template>
@@ -133,17 +193,13 @@ async function handleRegister() {
             <!-- Hero -->
             <div
                 class="flex flex-col xl:flex-row xl:items-end justify-between md:gap-56 gap-8 mb-12 border-b border-white/5 pb-8 relative">
-                <div class="absolute bottom-0 left-0 w-32 h-px bg-gradient-to-r from-primary to-transparent"></div>
+                <div class="absolute bottom-0 left-0 w-32 h-px bg-linear-to-r from-primary to-transparent"></div>
 
                 <div class="relative">
                     <div class="flex items-center gap-4 mb-4">
                         <CyberChip :variant="displayTournament?.status.toLowerCase() || 'default'">
                             {{ displayTournament?.status }}
                         </CyberChip>
-                        <span
-                            class="text-slate-500 font-display tracking-widest text-xs uppercase border-l border-white/10 pl-4">
-                            {{ displayTournament?.game }}
-                        </span>
                     </div>
 
                     <h1
@@ -175,11 +231,11 @@ async function handleRegister() {
                 <!-- Left Sidebar Info -->
                 <div class="lg:col-span-4 space-y-6">
                     <!-- Prize Pool Card -->
-                    <CyberPanel clip-class="clip-corner-sm" class="overflow-hidden group">
-                        <div class="absolute inset-0 bg-gradient-to-b from-accent-blue/5 to-transparent opacity-50">
+                    <CyberCard clip-class="clip-corner-sm" class="overflow-hidden group" content-class="bg-[#0A0F1C]">
+                        <div class="absolute inset-0 bg-linear-to-b from-accent-blue/5 to-transparent opacity-50">
                         </div>
                         <div
-                            class="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-accent-blue via-purple-500 to-transparent">
+                            class="absolute top-0 left-0 w-full h-0.5 bg-linear-to-r from-accent-blue via-purple-500 to-transparent">
                         </div>
                         <div class="p-6 relative z-10">
                             <div class="flex items-center justify-between mb-8">
@@ -193,11 +249,12 @@ async function handleRegister() {
                                 <div
                                     class="flex justify-between items-center text-sm border-b border-dashed border-white/10 pb-3">
                                     <span class="text-slate-400">Entry Fee</span>
-                                    <span class="font-display font-bold text-white tracking-wide">
-                                        {{ prizePool.entry }}
+                                    <span class="font-display font-bold tracking-wide"
+                                        :class="prizePool.isFree ? 'text-green-400' : 'text-white'">
+                                        {{ prizePool.isFree ? 'FREE' : prizePool.entry }}
                                     </span>
                                 </div>
-                                <div
+                                <div v-if="prizePool.hasSponsor"
                                     class="flex justify-between items-center text-sm border-b border-dashed border-white/10 pb-3">
                                     <span class="text-slate-400">Sponsor Contribution</span>
                                     <span class="font-display font-bold text-green-400">+ {{ prizePool.sponsor }}</span>
@@ -208,14 +265,47 @@ async function handleRegister() {
                                             class="text-slate-500 uppercase text-[10px] tracking-widest font-bold mb-1">Total
                                             Pool Value</span>
                                         <span
-                                            class="font-display font-black text-4xl text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">
+                                            class="font-display font-black text-4xl text-transparent bg-clip-text bg-linear-to-r from-white to-slate-400">
                                             {{ prizePool.total }}
                                         </span>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </CyberPanel>
+                    </CyberCard>
+
+                    <!-- GM Management Section -->
+                    <CyberCard v-if="isGM" variant="primary" clip-class="clip-corner"
+                        class="mb-6 relative overflow-hidden group">
+                        <div
+                            class="absolute inset-0 bg-primary/5 opacity-50 group-hover:opacity-100 transition-opacity">
+                        </div>
+                        <div class="p-6 relative z-10">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div
+                                    class="w-10 h-10 rounded bg-primary/10 border border-primary/20 flex items-center justify-center">
+                                    <Shield class="w-5 h-5 text-primary" />
+                                </div>
+                                <div>
+                                    <h3 class="font-display text-sm font-bold uppercase tracking-widest text-primary">
+                                        Game Master Access</h3>
+                                    <p class="text-[10px] text-slate-400 uppercase tracking-widest">Admin Control Active
+                                    </p>
+                                </div>
+                            </div>
+
+                            <p class="text-xs text-slate-300 leading-relaxed mb-6">
+                                You are the designated Game Master for this tournament. Access the dashboard to manage
+                                participants and declare winners.
+                            </p>
+
+                            <NuxtLink :to="`/tournaments/${tournamentId}/manage`" class="block">
+                                <CyberButton variant="primary" block class="text-xs">
+                                    Manage Tournament
+                                </CyberButton>
+                            </NuxtLink>
+                        </div>
+                    </CyberCard>
 
                     <!-- Tournament Info -->
                     <div class="bg-surface-dark/50 border border-white/5 p-6 rounded-sm relative">
@@ -252,8 +342,17 @@ async function handleRegister() {
 
                 <!-- Main Content -->
                 <div class="lg:col-span-8">
-                    <div class="bg-surface-dark border border-white/10 rounded-sm p-8 h-full relative overflow-hidden">
-                        <div class="absolute right-0 top-0 w-64 h-64 bg-gradient-to-bl from-white/5 to-transparent opacity-20 pointer-events-none"
+                    <!-- Tournament Bracket (Shown when LIVE or ENDED) -->
+                    <div v-if="displayTournament?.status === 'LIVE' || displayTournament?.status === 'ENDED'"
+                        class="h-full">
+                        <BracketTournamentBracket :matches="bracketMatches" :rounds="bracketRounds"
+                            :current-round-index="Math.max(0, (tournament?.currentRound || 1) - 1)" />
+                    </div>
+
+                    <!-- Tournament Brief (Shown otherwise) -->
+                    <div v-else
+                        class="bg-surface-dark border border-white/10 rounded-sm p-8 h-full relative overflow-hidden">
+                        <div class="absolute right-0 top-0 w-64 h-64 bg-linear-to-bl from-white/5 to-transparent opacity-20 pointer-events-none"
                             style="clip-path: polygon(100% 0, 0 0, 100% 100%);"></div>
                         <div class="flex items-center gap-3 mb-8 pb-4 border-b border-white/5">
                             <Zap class="w-6 h-6 text-accent-blue" />
@@ -278,7 +377,9 @@ async function handleRegister() {
                                         </li>
                                         <li class="flex items-center gap-2">
                                             <span class="w-1 h-1 bg-slate-500 rounded-full"></span>
-                                            Entry Fee: {{ prizePool.entry }}
+                                            Entry Fee: <span
+                                                :class="prizePool.isFree ? 'text-green-400 font-bold' : ''">{{
+                                                    prizePool.isFree ? 'FREE' : prizePool.entry }}</span>
                                         </li>
                                         <li class="flex items-center gap-2">
                                             <span class="w-1 h-1 bg-slate-500 rounded-full"></span>
@@ -302,7 +403,7 @@ async function handleRegister() {
                 <div class="flex items-center justify-between mb-8">
                     <h3
                         class="font-display text-xl font-bold uppercase tracking-wider text-white flex items-center gap-4">
-                        <span class="w-2 h-8 bg-gradient-to-b from-primary to-purple-600 rounded-sm"></span>
+                        <span class="w-2 h-8 bg-linear-to-b from-primary to-purple-600 rounded-sm"></span>
                         Participants
                         <span
                             class="text-xs bg-white/5 border border-white/10 text-slate-300 px-3 py-1 rounded-sm font-body font-bold">
@@ -316,14 +417,13 @@ async function handleRegister() {
                         <div
                             class="absolute inset-0 bg-accent-blue/5 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                         </div>
-                        <div class="relative w-10 h-10 rounded bg-gradient-to-br from-blue-500 to-purple-600 p-[1px]">
-                            <div class="w-full h-full bg-black rounded overflow-hidden">
-                                <div class="w-full h-full bg-gray-800"></div>
-                            </div>
-                        </div>
+                        <UserAvatar :address="tournament.participants[user.id]" size="10"
+                            class-name="rounded p-[1px] bg-linear-to-br from-blue-500 to-purple-600" />
+
+
                         <div class="flex-1 min-w-0 relative z-10">
                             <div class="text-sm font-bold text-white truncate font-display tracking-wide">{{ user.name
-                                }}
+                            }}
                             </div>
                             <div class="text-[10px] uppercase tracking-wider text-slate-500">{{ user.title }}</div>
                         </div>
@@ -340,7 +440,7 @@ async function handleRegister() {
 
         <!-- Sticky Footer -->
         <div v-if="!isRegistered && displayTournament?.status !== 'ENDED'"
-            class="fixed bottom-0 left-0 lg:left-20 right-0 p-0 z-40 pointer-events-none flex justify-center">
+            class="fixed bottom-0 left-0 lg:left-24 right-0 p-0 z-40 pointer-events-none flex justify-center">
             <div
                 class="bg-[#0A0F1C]/95 backdrop-blur-xl border-t border-white/10 shadow-[0_-10px_40px_-15px_rgba(0,0,0,1)] w-full max-w-[1920px] py-6 px-8 lg:px-12 flex flex-col md:flex-row items-center justify-between gap-6 pointer-events-auto">
                 <div class="flex items-center gap-5">
@@ -371,7 +471,9 @@ async function handleRegister() {
                 </div>
                 <div class="flex flex-col md:flex-row items-center gap-6 w-full md:w-auto">
                     <p v-if="tournament" class="text-xs text-slate-500 hidden md:block text-right">
-                        Registration requires {{ prizePool.entry }} + Gas
+                        Registration {{ prizePool.isFree ? 'is' : 'requires' }} <span
+                            :class="prizePool.isFree ? 'text-green-400 font-bold ml-1' : ''">{{
+                                prizePool.isFree ? 'FREE' : prizePool.entry }}</span> + Gas
                     </p>
                     <CyberButton variant="primary" class="w-full md:w-auto pl-10 pr-8 py-4"
                         :disabled="!isConnected || registering" @click="handleRegister">

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Plus, Wallet, Loader2 } from 'lucide-vue-next'
 import { useWallet } from '~/composables/useWallet'
+import UserAvatar from './UserAvatar.vue'
 import WalletModal from './WalletModal.vue'
 
-const { isConnected, truncatedAddress, isConnecting, error } = useWallet()
+const { isConnected, truncatedAddress, isConnecting, error, address: fullAddress } = useWallet()
 
 const isModalOpen = ref(false)
 </script>
@@ -35,10 +36,9 @@ const isModalOpen = ref(false)
                                 Switch Account
                             </div>
                         </div>
-                        <div
-                            class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/30 to-secondary/30 border border-white/20 flex items-center justify-center shadow-neon-blue group-hover:border-primary/50 transition-colors">
-                            <Wallet class="w-5 h-5 text-white" />
-                        </div>
+                        <UserAvatar :address="fullAddress" size="10"
+                            class-name="shadow-neon-blue group-hover:border-primary/50 transition-colors" />
+
                     </button>
                 </div>
             </template>

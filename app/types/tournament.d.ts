@@ -1,3 +1,14 @@
+interface ContractMatch {
+    matchId: number
+    round: number
+    playerA: string | null
+    playerB: string | null
+    winner: string | null
+    status: number
+    nextMatchId: number | null
+    nextMatchSlot: number
+}
+
 interface Tournament {
     id: string
     name: string
@@ -15,6 +26,7 @@ interface Tournament {
     gameMaster: string
     currentRound: number
     totalRounds: number
+    matches: ContractMatch[]
 }
 
 

@@ -18,7 +18,8 @@ const formData = ref({
     launchTime: undefined as Date | undefined,
     description: '',
     entryFee: 10,
-    gmAllocation: 5
+    gmAllocation: 5,
+    sponsorAmount: 0
 })
 
 const CREATION_FEE = 1 // 1 SUI
@@ -30,7 +31,7 @@ const platformTax = computed(() => {
 })
 
 const totalCost = computed(() => {
-    return (CREATION_FEE + GAS_ESTIMATE).toFixed(2)
+    return (CREATION_FEE + (formData.value.sponsorAmount || 0) + GAS_ESTIMATE).toFixed(2)
 })
 
 // Validation
@@ -38,11 +39,16 @@ const isGmAllocationValid = computed(() => {
     return formData.value.gmAllocation >= 0 && formData.value.gmAllocation <= 50
 })
 
+const isSponsorRequired = computed(() => {
+    return formData.value.entryFee === 0 && (formData.value.sponsorAmount || 0) <= 0
+})
+
 const isValid = computed(() => {
     return formData.value.game &&
         formData.value.name &&
         formData.value.launchTime &&
-        isGmAllocationValid.value
+        isGmAllocationValid.value &&
+        !isSponsorRequired.value
 })
 
 const handleCreateTournament = () => {
@@ -56,6 +62,7 @@ const handleCreateTournament = () => {
         date: formData.value.launchTime?.getTime(), // u64 timestamp
         description: formData.value.description,
         entry_fee: formData.value.entryFee * 1_000_000_000, // to MIST
+        sponsor_amount: (formData.value.sponsorAmount || 0) * 1_000_000_000, // to MIST
         gm_fee_bps: formData.value.gmAllocation * 100, // to BPS
     }
 
@@ -80,7 +87,7 @@ const handleCreateTournament = () => {
                     <h1
                         class="text-4xl md:text-5xl font-display font-black text-white uppercase tracking-tighter leading-none">
                         Create Tournament<span
-                            class="text-transparent bg-clip-text bg-gradient-to-r from-secondary to-white">Tournament</span>
+                            class="text-transparent bg-clip-text bg-linear-to-r from-secondary to-white">Tournament</span>
                     </h1>
                 </div>
                 <div class="flex items-center gap-3 text-sm font-medium text-slate-400 mt-4 md:mt-0">
@@ -182,6 +189,16 @@ const handleCreateTournament = () => {
                                 </p>
                             </div>
                             <div>
+                                <CyberInput v-model="formData.sponsorAmount" label="Sponsor Contribution" suffix="SUI"
+                                    type="number" min="0" variant="secondary"
+                                    :class="{ 'border-red-500 shadow-neon-red': isSponsorRequired }" />
+                                <p class="text-[10px] text-slate-500 mt-2 font-mono uppercase flex justify-between">
+                                    <span>>> Added to prize pool</span>
+                                    <span v-if="isSponsorRequired" class="text-red-500 animate-pulse">Required for free
+                                        tournaments!</span>
+                                </p>
+                            </div>
+                            <div>
                                 <CyberInput v-model="formData.gmAllocation" label="GM Allocation" suffix="%"
                                     type="number" min="0" max="50" variant="primary"
                                     :class="{ 'border-red-500': !isGmAllocationValid }" />
@@ -217,6 +234,12 @@ const handleCreateTournament = () => {
                                         <span class="text-slate-400 group-hover:text-white transition-colors">Creation
                                             Fee</span>
                                         <span class="text-secondary">{{ CREATION_FEE.toFixed(2) }} SUI</span>
+                                    </div>
+                                    <div v-if="formData.sponsorAmount > 0"
+                                        class="flex justify-between items-center group">
+                                        <span class="text-slate-400 group-hover:text-white transition-colors">Sponsor
+                                            Contribution</span>
+                                        <span class="text-secondary">{{ formData.sponsorAmount.toFixed(2) }} SUI</span>
                                     </div>
                                     <!-- Platform Tax isn't a direct creation cost, hiding for clarity or keeping as info if needed -->
                                     <!-- 

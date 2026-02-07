@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ChevronDown } from 'lucide-vue-next'
+
 const props = withDefaults(defineProps<{
     modelValue?: string | number
     label?: string
@@ -41,7 +43,7 @@ defineEmits(['update:modelValue'])
             <!-- Custom Arrow -->
             <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 transition-colors"
                 :class="variant === 'primary' ? 'group-focus-within:text-primary' : 'group-focus-within:text-secondary'">
-                <span class="material-icons">expand_more</span>
+                <ChevronDown class="w-5 h-5" />
             </div>
 
             <!-- Corner Accents -->

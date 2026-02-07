@@ -3,9 +3,10 @@ module tournament_platform::tournament {
     use sui::sui::SUI;
     use sui::coin::{Self, Coin};
     use sui::event;
+    use sui::dynamic_object_field;
     use std::string::String;
-    // use std::vector; // Unused alias warning
-    // use std::option::{Self, Option}; // Unused alias warning
+    // use std::vector; 
+    // use std::option::{Self, Option}; 
 
     use tournament_platform::platform_config::{Self, PlatformConfig};
     use tournament_platform::game_registry::{Self, GameRegistry};
@@ -37,6 +38,7 @@ module tournament_platform::tournament {
     const EGameNotSupported: u64 = 1009;
     const EInvalidGmFee: u64 = 1010;
     const ENotUpgrade: u64 = 1011;
+    const ESponsorRequiredForFreeTournament: u64 = 1012;
 
     // ============ STRUCTS ============
 
@@ -58,12 +60,14 @@ module tournament_platform::tournament {
         winner: Option<address>,
         current_round: u64,
         total_rounds: u64,
-        matches: vector<Match>,
+        // matches: vector<Match>, // Replaced by dynamic fields
+        total_matches: u64,
         matches_in_current_round: u64,
         matches_completed_in_current_round: u64,
     }
 
-    public struct Match has store, copy, drop {
+    public struct Match has key, store {
+        id: UID,
         match_id: u64,
         round: u64,
         player_a: Option<address>,
@@ -146,6 +150,9 @@ module tournament_platform::tournament {
         let payment_value = coin::value(&payment);
         assert!(payment_value >= creation_fee, EInsufficientPayment);
 
+        // If tournament is free, GM must provide some prize pool via sponsor payment
+        assert!(entry_fee > 0 || payment_value > creation_fee, ESponsorRequiredForFreeTournament);
+
         // Split payment: creation fee to platform, rest to sponsor pool
         let mut payment_balance = coin::into_balance(payment);
         let creation_fee_balance = balance::split(&mut payment_balance, creation_fee);
@@ -175,7 +182,7 @@ module tournament_platform::tournament {
             winner: option::none(),
             current_round: 0,
             total_rounds: 0,
-            matches: vector::empty(),
+            total_matches: 0,
             matches_in_current_round: 0,
             matches_completed_in_current_round: 0,
         };
@@ -226,7 +233,7 @@ module tournament_platform::tournament {
         event::emit(PlayerRegistered {
             tournament_id: object::id(tournament),
             player,
-            total_participants: vector::length(&tournament.participants),
+            total_participants: len + 1,
         });
     }
 
@@ -250,7 +257,7 @@ module tournament_platform::tournament {
         tournament.status = STATUS_IN_PROGRESS;
 
         // Generate bracket
-        generate_bracket(tournament);
+        generate_bracket(tournament, ctx); // Passed ctx
 
         event::emit(TournamentStarted {
             tournament_id: object::id(tournament),
@@ -272,36 +279,46 @@ module tournament_platform::tournament {
         assert!(tournament.status == STATUS_IN_PROGRESS, EInvalidStatus);
         assert!(tx_context::sender(ctx) == tournament.game_master, ENotGameMaster);
 
-        // Find and validate match
-        let matches_len = vector::length(&tournament.matches);
-        assert!(match_id < matches_len, EInvalidMatch);
+        assert!(dynamic_object_field::exists_(&tournament.id, match_id), EInvalidMatch);
         
-        let match_ref = vector::borrow_mut(&mut tournament.matches, match_id);
-        assert!(match_ref.status == MATCH_READY, EMatchNotReady);
+        // Scope for match modification to release borrow
+        let (winner, next_match_id, next_match_slot) = {
+            let match_ref = dynamic_object_field::borrow_mut<u64, Match>(&mut tournament.id, match_id);
+            assert!(match_ref.status == MATCH_READY, EMatchNotReady);
 
-        // Validate winner is one of the players
-        let is_player_a = option::is_some(&match_ref.player_a) && 
-                          *option::borrow(&match_ref.player_a) == winner_address;
-        let is_player_b = option::is_some(&match_ref.player_b) && 
-                          *option::borrow(&match_ref.player_b) == winner_address;
-        assert!(is_player_a || is_player_b, EInvalidWinner);
+            // Validate winner is one of the players
+            let is_player_a = option::is_some(&match_ref.player_a) && 
+                            *option::borrow(&match_ref.player_a) == winner_address;
+            let is_player_b = option::is_some(&match_ref.player_b) && 
+                            *option::borrow(&match_ref.player_b) == winner_address;
+            assert!(is_player_a || is_player_b, EInvalidWinner);
 
-        // Record result
-        match_ref.winner = option::some(winner_address);
-        match_ref.status = MATCH_COMPLETED;
+            // Record result
+            match_ref.winner = option::some(winner_address);
+            match_ref.status = MATCH_COMPLETED;
+            
+            (winner_address, match_ref.next_match_id, match_ref.next_match_slot)
+        };
+
         tournament.matches_completed_in_current_round = 
             tournament.matches_completed_in_current_round + 1;
+            
+        event::emit(MatchResult {
+            tournament_id: object::id(tournament),
+            match_id,
+            winner: winner_address,
+            round: tournament.current_round,
+        });
 
         // Advance winner to next match if exists
-        if (option::is_some(&match_ref.next_match_id)) {
-            let next_id = *option::borrow(&match_ref.next_match_id);
-            let slot = match_ref.next_match_slot;
-            let next_match = vector::borrow_mut(&mut tournament.matches, next_id);
+        if (option::is_some(&next_match_id)) {
+            let next_id = *option::borrow(&next_match_id);
+            let next_match = dynamic_object_field::borrow_mut<u64, Match>(&mut tournament.id, next_id);
             
-            if (slot == 0) {
-                next_match.player_a = option::some(winner_address);
+            if (next_match_slot == 0) {
+                next_match.player_a = option::some(winner);
             } else {
-                next_match.player_b = option::some(winner_address);
+                next_match.player_b = option::some(winner);
             };
 
             // Check if next match is ready
@@ -309,13 +326,6 @@ module tournament_platform::tournament {
                 next_match.status = MATCH_READY;
             };
         };
-
-        event::emit(MatchResult {
-            tournament_id: object::id(tournament),
-            match_id,
-            winner: winner_address,
-            round: tournament.current_round,
-        });
 
         // Check if round is complete
         if (tournament.matches_completed_in_current_round >= tournament.matches_in_current_round) {
@@ -447,7 +457,7 @@ module tournament_platform::tournament {
         rounds
     }
 
-    fun generate_bracket(tournament: &mut Tournament) {
+    fun generate_bracket(tournament: &mut Tournament, ctx: &mut TxContext) {
         let num_players = vector::length(&tournament.participants);
         let total_rounds = tournament.total_rounds;
         
@@ -459,19 +469,37 @@ module tournament_platform::tournament {
             r = r + 1;
         };
         total_matches = total_matches - 1;
+        tournament.total_matches = total_matches; 
 
-        // Create all matches
+        // Create and Attach All Matches
         let mut match_id = 0u64;
+        
+        // Helper vars for parent calculation
+        let mut start_of_current_round = 0u64;
+        let mut matches_in_current_round = (total_matches + 1) / 2;
+        let mut current_round_tracker = 1u64;
+
         while (match_id < total_matches) {
             let round = get_round_for_match(match_id, total_rounds);
-            let next_match = if (match_id < total_matches - 1) {
-                option::some((total_matches - 1 - (total_matches - 1 - match_id) / 2))
+            
+            if (match_id >= start_of_current_round + matches_in_current_round) {
+                start_of_current_round = start_of_current_round + matches_in_current_round;
+                matches_in_current_round = matches_in_current_round / 2;
+                current_round_tracker = current_round_tracker + 1;
+            };
+
+            let next_match = if (round < total_rounds) {
+                let start_of_next_round = start_of_current_round + matches_in_current_round;
+                let offset = match_id - start_of_current_round;
+                option::some(start_of_next_round + (offset / 2))
             } else {
                 option::none()
             };
+
             let next_slot = ((match_id % 2) as u8);
 
-            vector::push_back(&mut tournament.matches, Match {
+            let match_obj = Match {
+                id: object::new(ctx),
                 match_id,
                 round,
                 player_a: option::none(),
@@ -479,8 +507,10 @@ module tournament_platform::tournament {
                 winner: option::none(),
                 status: MATCH_PENDING,
                 next_match_id: next_match,
-                next_match_slot: next_slot,
-            });
+                next_match_slot: next_slot, // 0 for A, 1 for B
+            };
+
+            dynamic_object_field::add(&mut tournament.id, match_id, match_obj);
             match_id = match_id + 1;
         };
 
@@ -490,73 +520,86 @@ module tournament_platform::tournament {
         let mut match_index = 0u64;
         
         while (match_index < first_round_matches && player_index < num_players) {
-            let match_ref = vector::borrow_mut(&mut tournament.matches, match_index);
+            let match_ref = dynamic_object_field::borrow_mut<u64, Match>(&mut tournament.id, match_index);
             
-            // Assign player A
+            let mut winner_opt = option::none();
+            
             if (player_index < num_players) {
                 match_ref.player_a = option::some(*vector::borrow(&tournament.participants, player_index));
                 player_index = player_index + 1;
             };
             
-            // Assign player B
             if (player_index < num_players) {
                 match_ref.player_b = option::some(*vector::borrow(&tournament.participants, player_index));
                 player_index = player_index + 1;
                 match_ref.status = MATCH_READY;
             } else {
-                // Bye - player A auto-advances
                 match_ref.status = MATCH_BYE;
                 let winner = *option::borrow(&match_ref.player_a);
                 match_ref.winner = option::some(winner);
-                
-                // Advance to next match
-                if (option::is_some(&match_ref.next_match_id)) {
-                    let next_id = *option::borrow(&match_ref.next_match_id);
-                    let slot = match_ref.next_match_slot;
-                    let next_match = vector::borrow_mut(&mut tournament.matches, next_id);
-                    if (slot == 0) {
-                        next_match.player_a = option::some(winner);
-                    } else {
-                        next_match.player_b = option::some(winner);
-                    };
-                };
+                winner_opt = option::some(winner);
             };
-            
+
             match_index = match_index + 1;
+        };
+        
+        // Handle Byes advancement in a second pass
+        match_index = 0;
+        while (match_index < first_round_matches) {
+             let (is_bye, winner_opt, next_match_id, next_match_slot) = {
+                let match_ref = dynamic_object_field::borrow<u64, Match>(&tournament.id, match_index);
+                (match_ref.status == MATCH_BYE, match_ref.winner, match_ref.next_match_id, match_ref.next_match_slot)
+             };
+
+             if (is_bye && option::is_some(&next_match_id)) {
+                 let next_id = *option::borrow(&next_match_id);
+                 let winner = *option::borrow(&winner_opt);
+                 let next_match = dynamic_object_field::borrow_mut<u64, Match>(&mut tournament.id, next_id);
+                 if (next_match_slot == 0) {
+                     next_match.player_a = option::some(winner);
+                 } else {
+                     next_match.player_b = option::some(winner);
+                 };
+                 
+                 if (option::is_some(&next_match.player_a) && option::is_some(&next_match.player_b)) {
+                      next_match.status = MATCH_READY;
+                 };
+             };
+             match_index = match_index + 1;
         };
 
         count_matches_in_round(tournament);
     }
 
     fun get_round_for_match(match_id: u64, total_rounds: u64): u64 {
-        // First round has most matches, final round has 1
-        let round = 1u64;
-        let mut matches_before = 0u64;
+        let mut round = 1u64;
         let mut matches_in_round = 1u64;
-        
-        // Calculate matches per round from final backwards
-        let mut r = total_rounds;
-        while (r > 0) {
+        let mut i = 1;
+        while (i < total_rounds) {
+            matches_in_round = matches_in_round * 2;
+            i = i + 1;
+        };
+
+        let mut matches_before = 0u64;
+        while (round <= total_rounds) {
             if (match_id < matches_before + matches_in_round) {
-                return total_rounds - r + 1
+                return round
             };
             matches_before = matches_before + matches_in_round;
-            matches_in_round = matches_in_round * 2;
-            r = r - 1;
+            matches_in_round = matches_in_round / 2;
+            round = round + 1;
         };
-        
-        round
+        total_rounds
     }
 
     fun count_matches_in_round(tournament: &mut Tournament) {
         let current_round = tournament.current_round;
         let mut count = 0u64;
         let mut completed = 0u64;
-        
-        let matches_len = vector::length(&tournament.matches);
+        let total_matches = tournament.total_matches;
         let mut i = 0;
-        while (i < matches_len) {
-            let match_ref = vector::borrow(&tournament.matches, i);
+        while (i < total_matches) {
+            let match_ref = dynamic_object_field::borrow<u64, Match>(&tournament.id, i);
             if (match_ref.round == current_round) {
                 if (match_ref.status != MATCH_BYE) {
                     count = count + 1;

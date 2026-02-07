@@ -30,7 +30,7 @@ const borderColor = computed(() => {
         { 'hover:border-opacity-50 hover:shadow-[0_0_20px_rgba(var(--glow-rgb),0.2)]': hoverEffect }
     ]">
         <!-- Border/Glow Container -->
-        <div v-if="!noBorder" class="absolute inset-0 pointer-events-none p-[1px] inherit-clip" :class="clipClass"
+        <div v-if="!noBorder" class="absolute inset-0 pointer-events-none p-[1px]" :class="clipClass"
             :style="{ background: `linear-gradient(45deg, ${borderColor}, transparent 40%, transparent 60%, ${borderColor})` }">
             <div class="h-full w-full bg-surface-dark opacity-90" :class="clipClass"></div>
         </div>
@@ -43,10 +43,6 @@ const borderColor = computed(() => {
 </template>
 
 <style scoped>
-.inherit-clip {
-    clip-path: inherit;
-}
-
 .bg-surface-dark {
     background-color: #0A0F1C;
     /* Matches mockups roughly */

@@ -30,6 +30,7 @@ function parseTournament(obj: any): Tournament {
         gameMaster: fields.game_master || '',
         currentRound: Number(fields.current_round || 0),
         totalRounds: Number(fields.total_rounds || 0),
+        matches: [] // Populated by fetchTournament or specialized loader
     }
 }
 
@@ -111,6 +112,7 @@ export function useTournaments() {
             loading.value = true
             error.value = null
 
+            // 1. Fetch Tournament Object
             const response = await client.getObject({
                 id: objectId,
                 options: {
@@ -124,7 +126,67 @@ export function useTournaments() {
                 return null
             }
 
-            return parseTournament(response)
+            // 2. Parse basic tournament data
+            const tournament = parseTournament(response)
+
+            // 3. Fetch Matches (Dynamic Fields)
+            const matchObjectIds: string[] = []
+            let cursor = null
+            let hasNextPage = true
+
+            // Fetch all dynamic fields
+            while (hasNextPage) {
+                const fieldsResponse: any = await client.getDynamicFields({
+                    parentId: objectId,
+                    cursor,
+                })
+
+                fieldsResponse.data.forEach((field: any) => {
+                    // Filter for Match type (key is u64)
+                    if (field.name.type === 'u64') {
+                        matchObjectIds.push(field.objectId)
+                    }
+                })
+
+                hasNextPage = fieldsResponse.hasNextPage
+                cursor = fieldsResponse.nextCursor
+            }
+
+            if (matchObjectIds.length > 0) {
+                // Fetch match objects in chunks of 50
+                const matches: any[] = []
+                const chunkSize = 50
+
+                for (let i = 0; i < matchObjectIds.length; i += chunkSize) {
+                    const chunk = matchObjectIds.slice(i, i + chunkSize)
+                    const matchesResponse = await client.multiGetObjects({
+                        ids: chunk,
+                        options: { showContent: true }
+                    })
+
+                    matchesResponse.forEach((m: any) => {
+                        if (m.data?.content?.fields) {
+                            const fields = m.data.content.fields
+                            matches.push({
+                                matchId: Number(fields.match_id),
+                                round: Number(fields.round),
+                                playerA: fields.player_a || null,
+                                playerB: fields.player_b || null,
+                                winner: fields.winner || null,
+                                status: Number(fields.status),
+                                nextMatchId: fields.next_match_id ? Number(fields.next_match_id) : null,
+                                nextMatchSlot: Number(fields.next_match_slot)
+                            })
+                        }
+                    })
+                }
+
+                // Sort matches by ID
+                matches.sort((a, b) => a.matchId - b.matchId)
+                tournament.matches = matches
+            }
+
+            return tournament
         } catch (err: any) {
             error.value = err.message || 'Failed to fetch tournament'
             console.error('Failed to fetch tournament:', err)
