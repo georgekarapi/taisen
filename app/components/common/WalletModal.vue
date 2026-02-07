@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import { X, ChevronRight, ShieldCheck, User, Check, ChevronLeft } from 'lucide-vue-next'
+import { X, ChevronRight, ShieldCheck, User, Check, ChevronLeft, LogOut } from 'lucide-vue-next'
 import { useWallet } from '~/composables/useWallet'
 import { useEnokiWallet } from '~/composables/useEnokiWallet'
 import type { Wallet } from '@wallet-standard/core'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 
 const props = defineProps<{
     isOpen: boolean
@@ -12,7 +19,7 @@ const emit = defineEmits<{
     (e: 'close'): void
 }>()
 
-const { getAvailableWallets, connect: connectStandard, isConnecting: isConnectingStandard, activeWallet, selectAccount, address: activeAddress, refresh } = useWallet()
+const { getAvailableWallets, connect: connectStandard, isConnecting: isConnectingStandard, activeWallet, selectAccount, address: activeAddress, refresh, disconnect } = useWallet()
 const { connect: connectEnoki, isConnecting: isConnectingEnoki } = useEnokiWallet()
 
 const isConnecting = computed(() => isConnectingStandard.value || isConnectingEnoki.value)
@@ -49,28 +56,28 @@ const handleSelectAccount = (account: any) => {
     selectedForAccounts.value = null
 }
 
-const truncate = (addr: string) => `${addr.slice(0, 8)}...${addr.slice(-6)}`
-
-// Close on background click
-const closeOnBackdrop = (e: MouseEvent) => {
-    if (e.target === e.currentTarget) {
-        emit('close')
-    }
+const handleDisconnect = async () => {
+    await disconnect()
+    emit('close')
+    selectedForAccounts.value = null
 }
+
+const truncate = (addr: string) => `${addr.slice(0, 8)}...${addr.slice(-6)}`
 
 // Reset state on close
 watch(() => props.isOpen, (val) => {
     if (!val) selectedForAccounts.value = null
 })
+
+const handleOpenChange = (val: boolean) => {
+    if (!val) emit('close')
+}
 </script>
 
 <template>
-    <Transition name="modal">
-        <div v-if="isOpen"
-            class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            @click="closeOnBackdrop">
-
-            <div class="relative w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-300">
+    <Dialog :open="isOpen" @update:open="handleOpenChange">
+        <DialogContent class="sm:max-w-md p-0 border-none bg-transparent shadow-none [&>button]:hidden">
+            <div class="relative w-full overflow-hidden">
                 <!-- Cyber Background with Gradients -->
                 <div
                     class="absolute inset-0 bg-cyber-panel border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)]">
@@ -79,27 +86,35 @@ watch(() => props.isOpen, (val) => {
 
                 <!-- Content -->
                 <div class="relative z-10 p-6">
-                    <!-- Header -->
-                    <div class="flex items-center justify-between mb-8">
-                        <div>
-                            <button v-if="selectedForAccounts" @click="selectedForAccounts = null"
-                                class="flex items-center gap-1 text-[10px] text-primary uppercase font-bold tracking-widest mb-2 hover:opacity-80 transition-opacity">
-                                <ChevronLeft class="w-3 h-3" /> Back
+                    <DialogHeader class="mb-4">
+                        <DialogTitle class="sr-only">Connect Wallet</DialogTitle>
+                        <DialogDescription class="sr-only">
+                            Select a wallet to connect to the application
+                        </DialogDescription>
+
+                        <!-- Header -->
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <button v-if="selectedForAccounts" @click="selectedForAccounts = null"
+                                    class="flex items-center gap-1 text-[10px] text-primary uppercase font-bold tracking-widest mb-2 hover:opacity-80 transition-opacity">
+                                    <ChevronLeft class="w-3 h-3" /> Back
+                                </button>
+                                <h2
+                                    class="text-xl font-display font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                    <ShieldCheck class="w-5 h-5 text-primary" />
+                                    {{ selectedForAccounts ? 'Select Account' : 'Connect Wallet' }}
+                                </h2>
+                                <p class="text-xs text-white/40 mt-1 uppercase tracking-widest">
+                                    {{ selectedForAccounts ? selectedForAccounts.name : 'Select your preferred uplink'
+                                    }}
+                                </p>
+                            </div>
+                            <button @click="$emit('close')"
+                                class="p-2 hover:bg-white/5 rounded-lg transition-colors text-white/40 hover:text-white">
+                                <X class="w-5 h-5" />
                             </button>
-                            <h2
-                                class="text-xl font-display font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                                <ShieldCheck class="w-5 h-5 text-primary" />
-                                {{ selectedForAccounts ? 'Select Account' : 'Connect Wallet' }}
-                            </h2>
-                            <p class="text-xs text-white/40 mt-1 uppercase tracking-widest">
-                                {{ selectedForAccounts ? selectedForAccounts.name : 'Select your preferred uplink' }}
-                            </p>
                         </div>
-                        <button @click="$emit('close')"
-                            class="p-2 hover:bg-white/5 rounded-lg transition-colors text-white/40 hover:text-white">
-                            <X class="w-5 h-5" />
-                        </button>
-                    </div>
+                    </DialogHeader>
 
                     <!-- Wallet List -->
                     <div v-if="!selectedForAccounts" class="space-y-3">
@@ -169,39 +184,35 @@ watch(() => props.isOpen, (val) => {
                         </button>
                     </div>
 
-                    <!-- Footer Info -->
-                    <div class="mt-8 pt-6 border-t border-white/5 text-center">
+
+                    <!-- Disconnect Option -->
+                    <div v-if="activeAddress" class="mt-4 pt-4 border-t border-white/5 flex flex-col gap-3">
+                        <button @click="handleDisconnect"
+                            class="w-full py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 rounded-xl text-red-400 text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 group">
+                            <LogOut class="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            Disconnect Wallet
+                        </button>
+
+                        <div class="text-center">
+                            <p class="text-[10px] text-white/30 uppercase tracking-[0.2em] leading-relaxed">
+                                Secured by Sui Wallet Standard Protocol
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Footer Info (Only when not connected) -->
+                    <div v-else class="mt-8 pt-6 border-t border-white/5 text-center">
                         <p class="text-[10px] text-white/30 uppercase tracking-[0.2em] leading-relaxed">
                             Secured by Sui Wallet Standard Protocol
                         </p>
                     </div>
                 </div>
             </div>
-        </div>
-    </Transition>
+        </DialogContent>
+    </Dialog>
 </template>
 
 <style scoped>
-.modal-enter-active,
-.modal-leave-active {
-    transition: opacity 0.3s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-    opacity: 0;
-}
-
-.animate-in {
-    animation-fill-mode: forwards;
-}
-
-.zoom-in {
-    --tw-scale-x: 0.95;
-    --tw-scale-y: 0.95;
-    transform: scale(0.95);
-}
-
 .slide-in-from-right {
     --tw-enter-translate-x: 20px;
     transform: translateX(20px);

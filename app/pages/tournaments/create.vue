@@ -1,22 +1,68 @@
 <script setup lang="ts">
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import DateTimePicker from '@/components/ui/date-time-picker/DateTimePicker.vue'
 
 const { games } = useGames()
+const { isConnected } = useWallet()
 
 const formData = ref({
     game: games[0]?.slug || '',
     name: '',
     region: 'Global (Net)',
-    launchTime: '',
+    launchTime: undefined as Date | undefined,
     description: '',
     entryFee: 10,
     gmAllocation: 5
 })
 
-const totalCost = computed(() => {
-    // 5.00 creation fee + 2% platform tax of something (assuming fixed for now) + gas
-    // The mockup says 5.12 SUI. 
-    return 5.12
+const CREATION_FEE = 1 // 1 SUI
+const PLATFORM_TAX_BPS = 200 // 2%
+const GAS_ESTIMATE = 0.02
+
+const platformTax = computed(() => {
+    return 0
 })
+
+const totalCost = computed(() => {
+    return (CREATION_FEE + GAS_ESTIMATE).toFixed(2)
+})
+
+// Validation
+const isGmAllocationValid = computed(() => {
+    return formData.value.gmAllocation >= 0 && formData.value.gmAllocation <= 50
+})
+
+const isValid = computed(() => {
+    return formData.value.game &&
+        formData.value.name &&
+        formData.value.launchTime &&
+        isGmAllocationValid.value
+})
+
+const handleCreateTournament = () => {
+    if (!isValid.value) return
+
+    // formatting for smart contract
+    const payload = {
+        name: formData.value.name,
+        game_type: formData.value.game,
+        location: formData.value.region,
+        date: formData.value.launchTime?.getTime(), // u64 timestamp
+        description: formData.value.description,
+        entry_fee: formData.value.entryFee * 1_000_000_000, // to MIST
+        gm_fee_bps: formData.value.gmAllocation * 100, // to BPS
+    }
+
+    console.log('Creating tournament with payload:', payload)
+    // alert('Tournament creation payload prepared! Check console.')
+    // TODO: Integrate with wallet execution
+}
 </script>
 
 <template>
@@ -31,19 +77,13 @@ const totalCost = computed(() => {
                 class="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-800 pb-6 relative">
                 <div class="absolute bottom-[-1px] left-0 w-20 h-[2px] bg-secondary shadow-neon-blue"></div>
                 <div>
-                    <h5
-                        class="text-secondary font-display text-xs tracking-[0.3em] uppercase mb-2 flex items-center gap-2">
-                        <span class="w-2 h-2 bg-secondary inline-block rounded-sm"></span>
-                        Terminal // 0x4B
-                    </h5>
                     <h1
                         class="text-4xl md:text-5xl font-display font-black text-white uppercase tracking-tighter leading-none">
-                        Create <span
+                        Create Tournament<span
                             class="text-transparent bg-clip-text bg-gradient-to-r from-secondary to-white">Tournament</span>
                     </h1>
                 </div>
                 <div class="flex items-center gap-3 text-sm font-medium text-slate-400 mt-4 md:mt-0">
-                    <span class="text-secondary font-display uppercase text-xs tracking-widest">Phase 1</span>
                     <div class="flex gap-1">
                         <div class="h-2 w-8 bg-secondary shadow-neon-blue skew-x-[-20deg]"></div>
                         <div class="h-2 w-8 bg-slate-800 skew-x-[-20deg]"></div>
@@ -64,40 +104,64 @@ const totalCost = computed(() => {
 
                         <h2
                             class="text-xl font-display font-bold text-white mb-8 flex items-center gap-3 border-b border-slate-800/50 pb-4">
-                            <span class="material-icons text-secondary">grid_view</span>
-                            <span class="tracking-widest uppercase">Mission Intel</span>
+                            <span class="tracking-widest uppercase">Details</span>
                         </h2>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div class="col-span-1 md:col-span-2">
-                                <CyberSelect v-model="formData.game" label="Game Protocol" required>
-                                    <option v-for="game in games" :key="game.slug" :value="game.slug">
-                                        {{ game.title }}
-                                    </option>
-                                </CyberSelect>
+                                <label class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
+                                    Select Game <span class="text-[10px] text-slate-600">REQ*</span>
+                                </label>
+                                <Select v-model="formData.game">
+                                    <SelectTrigger class="w-full bg-black/60 border-slate-700 text-slate-100 h-12">
+                                        <SelectValue placeholder="Select Game" />
+                                    </SelectTrigger>
+                                    <SelectContent class="bg-slate-950 border-slate-800">
+                                        <SelectItem v-for="game in games" :key="game.slug" :value="game.slug"
+                                            class="text-slate-100 focus:bg-slate-900 focus:text-white">
+                                            {{ game.title }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <div class="col-span-1 md:col-span-2">
-                                <CyberInput v-model="formData.name" label="Operation Name"
-                                    placeholder="e.g. NEON CITY SHOWDOWN" />
+                                <CyberInput v-model="formData.name" label="Tournament Name"
+                                    placeholder="e.g. Yu-Gi-Oh! Thessaloniki Open 2025" />
                             </div>
 
                             <div>
-                                <CyberSelect v-model="formData.region" label="Region Coordinates">
-                                    <option>Global (Net)</option>
-                                    <option>NA - West Sector</option>
-                                    <option>EU - Central Core</option>
-                                    <option>APAC - Rim</option>
-                                </CyberSelect>
+                                <label class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
+                                    Region Coordinates
+                                </label>
+                                <Select v-model="formData.region">
+                                    <SelectTrigger class="w-full bg-black/60 border-slate-700 text-slate-100 h-12">
+                                        <SelectValue placeholder="Select Region" />
+                                    </SelectTrigger>
+                                    <SelectContent class="bg-slate-950 border-slate-800">
+                                        <SelectItem value="Global (Net)"
+                                            class="text-slate-100 focus:bg-slate-900 focus:text-white">Global (Net)
+                                        </SelectItem>
+                                        <SelectItem value="NA - West Sector"
+                                            class="text-slate-100 focus:bg-slate-900 focus:text-white">NA - West Sector
+                                        </SelectItem>
+                                        <SelectItem value="EU - Central Core"
+                                            class="text-slate-100 focus:bg-slate-900 focus:text-white">EU - Central Core
+                                        </SelectItem>
+                                        <SelectItem value="APAC - Rim"
+                                            class="text-slate-100 focus:bg-slate-900 focus:text-white">APAC - Rim
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <div>
-                                <CyberInput type="datetime-local" label="T-Minus Launch"
-                                    v-model="formData.launchTime" />
+                                <DateTimePicker v-model="formData.launchTime" label="Date & Time"
+                                    placeholder="Select Date & Time" required />
                             </div>
 
                             <div class="col-span-1 md:col-span-2">
-                                <CyberTextarea v-model="formData.description" label="Briefing Data"
+                                <CyberTextarea v-model="formData.description" label="Description"
                                     placeholder="Define engagement rules, prize pools, and operational constraints..." />
                             </div>
                         </div>
@@ -107,8 +171,7 @@ const totalCost = computed(() => {
                     <CyberPanel variant="primary" class="p-8 rounded-sm">
                         <h2
                             class="text-xl font-display font-bold text-white mb-8 flex items-center gap-3 border-b border-slate-800/50 pb-4">
-                            <span class="material-icons text-secondary">account_balance_wallet</span>
-                            <span class="tracking-widest uppercase">Fee Structure</span>
+                            <span class="tracking-widest uppercase">Tournament Fee Structure</span>
                         </h2>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
@@ -120,8 +183,13 @@ const totalCost = computed(() => {
                             </div>
                             <div>
                                 <CyberInput v-model="formData.gmAllocation" label="GM Allocation" suffix="%"
-                                    type="number" min="0" max="100" variant="primary" />
-                                <p class="text-[10px] text-slate-500 mt-2 font-mono uppercase">>> Organizer Cut</p>
+                                    type="number" min="0" max="50" variant="primary"
+                                    :class="{ 'border-red-500': !isGmAllocationValid }" />
+                                <p class="text-[10px] text-slate-500 mt-2 font-mono uppercase flex justify-between">
+                                    <span>>> Organizer Cut</span>
+                                    <span :class="isGmAllocationValid ? 'text-slate-500' : 'text-red-500'">Max
+                                        50%</span>
+                                </p>
                             </div>
                         </div>
                     </CyberPanel>
@@ -148,17 +216,20 @@ const totalCost = computed(() => {
                                     <div class="flex justify-between items-center group">
                                         <span class="text-slate-400 group-hover:text-white transition-colors">Creation
                                             Fee</span>
-                                        <span class="text-secondary">5.00 SUI</span>
+                                        <span class="text-secondary">{{ CREATION_FEE.toFixed(2) }} SUI</span>
                                     </div>
+                                    <!-- Platform Tax isn't a direct creation cost, hiding for clarity or keeping as info if needed -->
+                                    <!-- 
                                     <div class="flex justify-between items-center group">
                                         <span class="text-slate-400 group-hover:text-white transition-colors">Platform
                                             Tax (2%)</span>
-                                        <span class="text-secondary">0.10 SUI</span>
+                                        <span class="text-secondary">0.00 SUI</span>
                                     </div>
+                                    -->
                                     <div class="flex justify-between items-center group">
                                         <span class="text-slate-400 group-hover:text-white transition-colors">Est.
                                             Gas</span>
-                                        <span class="text-secondary opacity-70">~0.02 SUI</span>
+                                        <span class="text-secondary opacity-70">~{{ GAS_ESTIMATE }} SUI</span>
                                     </div>
                                     <div
                                         class="h-px w-full bg-gradient-to-r from-transparent via-slate-700 to-transparent my-4">
@@ -176,8 +247,15 @@ const totalCost = computed(() => {
                                     </div>
                                 </div>
 
-                                <CyberButton variant="primary" block>
-                                    Initialize Protocol
+                                <div v-if="!isConnected"
+                                    class="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded text-xs text-red-400 font-mono uppercase tracking-wider">
+                                    <span class="text-red-500 mr-2">!</span>
+                                    You must connect wallet to create a tournament
+                                </div>
+
+                                <CyberButton variant="primary" block :disabled="!isValid || !isConnected"
+                                    @click="handleCreateTournament">
+                                    Create
                                 </CyberButton>
                             </div>
                         </div>

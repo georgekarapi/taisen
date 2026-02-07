@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { Plus, Wallet, LogOut, Loader2 } from 'lucide-vue-next'
+import { Plus, Wallet, Loader2 } from 'lucide-vue-next'
 import { useWallet } from '~/composables/useWallet'
 import WalletModal from './WalletModal.vue'
 
-const { isConnected, truncatedAddress, isConnecting, error, disconnect } = useWallet()
+const { isConnected, truncatedAddress, isConnecting, error } = useWallet()
 
 const isModalOpen = ref(false)
 </script>
 
 <template>
-    <div class="flex items-center gap-6">
+    <div class="flex items-center gap-6 z-10">
         <!-- Wallet Connection -->
         <div class="flex items-center gap-3">
             <!-- Connected State -->
@@ -23,24 +23,22 @@ const isModalOpen = ref(false)
                         </button>
                     </NuxtLink>
                     <div class="h-6 w-px bg-white/10 mx-2"></div>
-                    <div class="text-right hidden sm:block">
-                        <div class="text-sm font-bold text-white leading-none tracking-wide font-mono">
-                            {{ truncatedAddress }}
+                    <button @click="isModalOpen = true"
+                        class="flex items-center gap-3 hover:opacity-80 transition-opacity group text-right">
+                        <div class="hidden sm:block">
+                            <div class="text-sm font-bold text-white leading-none tracking-wide font-mono">
+                                {{ truncatedAddress }}
+                            </div>
+                            <div
+                                class="text-[10px] text-primary group-hover:text-white font-mono mt-1 flex items-center justify-end gap-1 uppercase tracking-widest transition-colors">
+                                <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                                Switch Account
+                            </div>
                         </div>
-                        <button @click="isModalOpen = true"
-                            class="text-[10px] text-primary hover:text-white font-mono mt-1 flex items-center gap-1 uppercase tracking-widest transition-colors">
-                            <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                            Switch Account
-                        </button>
-                    </div>
-                    <div
-                        class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/30 to-secondary/30 border border-white/20 flex items-center justify-center shadow-neon-blue">
-                        <Wallet class="w-5 h-5 text-white" />
-                    </div>
-                    <button @click="disconnect"
-                        class="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
-                        title="Disconnect">
-                        <LogOut class="w-4 h-4" />
+                        <div
+                            class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/30 to-secondary/30 border border-white/20 flex items-center justify-center shadow-neon-blue group-hover:border-primary/50 transition-colors">
+                            <Wallet class="w-5 h-5 text-white" />
+                        </div>
                     </button>
                 </div>
             </template>

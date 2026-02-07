@@ -1,0 +1,40 @@
+interface Tournament {
+    id: string
+    name: string
+    location: string
+    date: number
+    gameType: string
+    description: string
+    entryFee: bigint
+    gmFeeBps: number
+    sponsorPool: bigint
+    playerPool: bigint
+    participants: string[]
+    status: TournamentStatus
+    winner: string | null
+    gameMaster: string
+    currentRound: number
+    totalRounds: number
+}
+
+
+interface TournamentDisplay {
+    id: string
+    title: string
+    game: string
+    image: string
+    status: 'LIVE' | 'UPCOMING' | 'ENDED'
+    prizepool: string
+    teams: string
+    countdown: string
+    statusColor: string
+    iconColor: string
+    entryFee: string
+    sponsorPool: string
+    participants: string[]
+    gameMaster: string
+    description: string
+    location: string
+    date: Date
+}
+

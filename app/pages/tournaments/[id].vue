@@ -2,7 +2,7 @@
 import { Trophy, Shield, Zap, Users, Wallet, Loader2 } from 'lucide-vue-next'
 import { useBreadcrumbs } from '~/composables/useBreadcrumbs'
 import { useWallet } from '~/composables/useWallet'
-import { formatSui, truncateAddress } from '~/types/tournament'
+// Utility functions (formatSui, truncateAddress) and types are now auto-imported or global
 
 definePageMeta({
     layout: 'content'
@@ -48,25 +48,18 @@ const prizePool = computed(() => {
     }
 })
 
-const statusDisplay = computed(() => {
-    if (!displayTournament.value) return { text: 'Loading', color: 'gray' }
-    const status = displayTournament.value.status
-    const colors: Record<string, string> = {
-        'LIVE': 'green',
-        'UPCOMING': 'blue',
-        'ENDED': 'gray'
-    }
-    return { text: status, color: colors[status] || 'gray' }
-})
+
+
+const now = useNow()
 
 const timerDisplay = computed(() => {
     if (!tournament.value) return '00:00:00'
-    const now = Date.now()
+    const currentTime = now.value.getTime()
     const date = tournament.value.date
 
-    if (date <= now) return 'Started'
+    if (date <= currentTime) return 'In Progress'
 
-    const diff = date - now
+    const diff = date - currentTime
     const hours = Math.floor(diff / (1000 * 60 * 60))
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
     const seconds = Math.floor((diff % (1000 * 60)) / 1000)
@@ -144,19 +137,9 @@ async function handleRegister() {
 
                 <div class="relative">
                     <div class="flex items-center gap-4 mb-4">
-                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-bold tracking-[0.2em] uppercase shadow-[0_0_10px_rgba(34,197,94,0.1)]"
-                            :class="{
-                                'bg-green-500/10 border-green-500/20 text-green-400': statusDisplay.color === 'green',
-                                'bg-blue-500/10 border-blue-500/20 text-blue-400': statusDisplay.color === 'blue',
-                                'bg-gray-500/10 border-gray-500/20 text-gray-400': statusDisplay.color === 'gray'
-                            }">
-                            <span class="w-1.5 h-1.5 rounded-full animate-pulse shadow-[0_0_5px_currentColor]" :class="{
-                                'bg-green-500': statusDisplay.color === 'green',
-                                'bg-blue-500': statusDisplay.color === 'blue',
-                                'bg-gray-500': statusDisplay.color === 'gray'
-                            }"></span>
-                            {{ statusDisplay.text }}
-                        </div>
+                        <CyberChip :variant="displayTournament?.status.toLowerCase() || 'default'">
+                            {{ displayTournament?.status }}
+                        </CyberChip>
                         <span
                             class="text-slate-500 font-display tracking-widest text-xs uppercase border-l border-white/10 pl-4">
                             {{ displayTournament?.game }}
@@ -175,13 +158,13 @@ async function handleRegister() {
 
                 <!-- Timer Box -->
                 <div
-                    class="flex flex-row xl:flex-col items-center xl:items-end gap-6 xl:gap-2 bg-surface-dark/50 p-4 rounded-lg border border-white/5">
+                    class="flex flex-row xl:flex-col items-center xl:items-end gap-6 xl:gap-2 bg-surface-dark/50 p-4 rounded-lg border border-white/5 w-full xl:w-auto whitespace-nowrap">
                     <div class="text-right">
                         <div class="text-[10px] text-slate-500 uppercase tracking-[0.2em] mb-1">
                             {{ displayTournament?.status === 'UPCOMING' ? 'Starts In' : 'Tournament Status' }}
                         </div>
-                        <div
-                            class="font-display text-3xl text-white font-bold tracking-widest tabular-nums text-glow-red font-mono">
+                        <div class="font-display text-xl text-white font-bold tracking-widest tabular-nums text-glow-red"
+                            :class="{ 'animate-glow-pulse': timerDisplay === 'In Progress' }">
                             {{ timerDisplay }}
                         </div>
                     </div>
@@ -340,7 +323,7 @@ async function handleRegister() {
                         </div>
                         <div class="flex-1 min-w-0 relative z-10">
                             <div class="text-sm font-bold text-white truncate font-display tracking-wide">{{ user.name
-                            }}
+                                }}
                             </div>
                             <div class="text-[10px] uppercase tracking-wider text-slate-500">{{ user.title }}</div>
                         </div>

@@ -29,8 +29,8 @@ const customClasses = computed(() => {
     const classes = ['font-display font-bold tracking-[0.2em] uppercase backdrop-blur-sm']
 
     if (props.variant === 'live') {
-        // 'bg-primary/10 border-primary/20 text-primary shadow-[0_0_10px_rgba(239,68,68,0.2)]'
-        classes.push('bg-primary/10 border-primary/20 text-primary shadow-[0_0_10px_rgba(239,68,68,0.2)] hover:bg-primary/20')
+        // 'bg-cyber-red/10 border-cyber-red/20 text-cyber-red shadow-[0_0_10px_rgba(255,0,60,0.2)]'
+        classes.push('bg-cyber-red/10 border-cyber-red/20 text-cyber-red shadow-[0_0_10px_rgba(255,0,60,0.2)] hover:bg-cyber-red/20')
     } else if (props.variant === 'upcoming') {
         // 'bg-secondary/10 border-secondary/20 text-secondary shadow-[0_0_10px_rgba(6,182,212,0.2)]'
         // If we use shadcn secondary variant, it might override bg color. We might want to force it.
@@ -47,8 +47,7 @@ const customClasses = computed(() => {
 <template>
     <Badge :variant="mappedVariant === 'secondary' ? 'outline' : mappedVariant" :class="customClasses" class="rounded">
         <span v-if="variant === 'live'"
-            class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_5px_#EF4444] mr-2"></span>
-        <span v-if="variant === 'upcoming'" class="w-1.5 h-1.5 rounded-full bg-cyber-cyan mr-2"></span>
+            class="w-1.5 h-1.5 rounded-full bg-cyber-red animate-pulse shadow-[0_0_5px_#ff003c] mr-2"></span>
 
         <slot>{{ label || variant }}</slot>
     </Badge>

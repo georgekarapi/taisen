@@ -8,19 +8,19 @@ const { getGameBySlug } = useGames()
 const game = computed(() => getGameBySlug(slug) || {
     title: slug.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
     slug: slug,
-    banner: '~/assets/images/banners/default.jpg',
-    logo: '~/assets/images/game-icons/mtg.png', // Fallback
-    sidebarIcon: '~/assets/images/game-icons/mtg.png'
+    banner: '/images/banners/default.webp',
+    logo: '/images/game-icons/mtg.webp', // Fallback
+    sidebarIcon: '/images/game-icons/mtg.webp'
 })
 </script>
 
 <template>
-    <div class="min-h-screen">
+    <div class="min-h-screen absolute top-0 left-0 right-0">
         <!-- Hero Section -->
         <div class="relative h-[400px] overflow-hidden">
             <div class="absolute inset-0">
                 <NuxtImg :src="game.banner" :alt="game.title"
-                    class="w-full h-full object-cover transform scale-105 blur-sm opacity-50" />
+                    class="w-full h-full object-cover transform scale-105 opacity-50" />
 
                 <div class="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent"></div>
             </div>
@@ -28,8 +28,8 @@ const game = computed(() => getGameBySlug(slug) || {
             <div class="relative container mx-auto px-6 h-full flex flex-col justify-end pb-12">
                 <div class="flex items-center gap-6 mb-4">
                     <div
-                        class="w-24 h-24 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center overflow-hidden shadow-neon-blue">
-                        <NuxtImg :src="game.logo" :alt="game.title" class="w-full h-full object-cover p-4" />
+                        class="w-24 h-24 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center overflow-hidden shadow-neon-blue p-4">
+                        <NuxtImg :src="game.logo" :alt="game.title" class="w-full h-full rounded-md object-cover" />
                     </div>
                     <div>
                         <h1
@@ -55,7 +55,7 @@ const game = computed(() => getGameBySlug(slug) || {
                 <!-- Left Content -->
                 <div class="lg:col-span-8 space-y-8">
                     <!-- About Section -->
-                    <div class="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-sm">
+                    <CyberCard class="backdrop-blur-sm" content-class="p-8 bg-white/5">
                         <h2
                             class="text-xl font-display font-bold text-white uppercase tracking-wider mb-6 flex items-center gap-3">
                             <div class="w-1 h-6 bg-primary"></div>
@@ -66,7 +66,7 @@ const game = computed(() => getGameBySlug(slug) || {
                             high-stakes tournaments, verified fair play, and instant prize distributions. Connect your
                             neural link and join the competitive ranks today.
                         </p>
-                    </div>
+                    </CyberCard>
 
                     <!-- Placeholder for Tournaments -->
                     <div class="space-y-4">
@@ -76,7 +76,8 @@ const game = computed(() => getGameBySlug(slug) || {
                             Upcoming Tournaments
                         </h2>
                         <div v-for="i in 3" :key="i"
-                            class="bg-white/5 border border-white/5 rounded-xl p-6 flex items-center justify-between group hover:bg-white/10 hover:border-white/20 transition-all cursor-not-allowed opacity-50">
+                            class="bg-white/5 border border-white/5 rounded-xl p-6 flex items-center justify-between group hover:bg-white/10 hover:border-white/20 transition-all cursor-not-allowed animate-slide-up"
+                            :style="{ animationDelay: `${i * 150}ms`, opacity: 0 }">
                             <div class="flex items-center gap-6">
                                 <div
                                     class="w-12 h-12 rounded bg-black/20 flex flex-col items-center justify-center border border-white/5">
@@ -97,8 +98,8 @@ const game = computed(() => getGameBySlug(slug) || {
 
                 <!-- Right Sidebar -->
                 <div class="lg:col-span-4 space-y-6">
-                    <div
-                        class="bg-gradient-to-br from-primary/20 to-secondary/20 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
+                    <CyberCard class="backdrop-blur-md"
+                        content-class="p-6 bg-gradient-to-br from-slate-800/50 to-slate-900/80">
                         <h3 class="text-white font-bold tracking-wider uppercase mb-4">Quick Stats</h3>
                         <div class="space-y-4">
                             <div class="flex justify-between items-center text-sm">
@@ -119,9 +120,27 @@ const game = computed(() => getGameBySlug(slug) || {
                             View Profile
                             <ExternalLink class="w-3 h-3" />
                         </button>
-                    </div>
+                    </CyberCard>
                 </div>
             </div>
         </div>
     </div>
 </template>
+
+<style scoped>
+@keyframes slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 0.5;
+        transform: translateY(0);
+    }
+}
+
+.animate-slide-up {
+    animation: slide-up 0.5s ease-out forwards;
+}
+</style>

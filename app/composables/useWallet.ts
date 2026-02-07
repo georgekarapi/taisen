@@ -1,6 +1,6 @@
 import { ref, computed, onMounted, markRaw, toRaw } from 'vue'
 import { getWallets, type Wallet, type WalletAccount } from '@wallet-standard/core'
-import { isEnokiWallet, type EnokiWallet } from '@mysten/enoki'
+import { isEnokiWallet } from '@mysten/enoki'
 
 interface WalletState {
     wallet: Wallet | null
@@ -18,140 +18,113 @@ const state = ref<WalletState>({
     isEnoki: false
 })
 
+export const DISCONNECTED_KEY = 'taisen_wallet_disconnected'
+
 let walletsApi: ReturnType<typeof getWallets> | null = null
+const unsubs = new Map<string, () => void>()
+
+// Consolidated state reset
+function resetWalletState() {
+    state.value.wallet = null
+    state.value.account = null
+    state.value.isEnoki = false
+}
 
 function initWallets() {
     if (import.meta.server) return null
 
     if (!walletsApi) {
         walletsApi = getWallets()
-
-        // Listen for updates
-        walletsApi.on('register', () => {
-            checkForConnectedWallet()
-        })
-
-        walletsApi.on('unregister', () => {
-            checkForConnectedWallet()
-        })
+        walletsApi.on('register', checkForConnectedWallet)
+        walletsApi.on('unregister', checkForConnectedWallet)
     }
 
     return walletsApi
 }
 
-export const DISCONNECTED_KEY = 'taisen_wallet_disconnected'
-const unsubs = new Map<string, () => void>()
-
 function setupWalletListeners(wallet: Wallet) {
-    // Cleanup existing listener for this wallet
-    if (unsubs.has(wallet.name)) {
-        unsubs.get(wallet.name)!()
-        unsubs.delete(wallet.name)
-    }
+    // Cleanup existing listener
+    unsubs.get(wallet.name)?.()
+    unsubs.delete(wallet.name)
 
-    if ('standard:events' in wallet.features) {
-        try {
-            const feature = wallet.features['standard:events'] as any
-            const unsub = feature.on('change', (properties: any) => {
-                if (properties.accounts && state.value.wallet?.name === wallet.name) {
-                    if (properties.accounts.length > 0) {
-                        state.value.account = markRaw(properties.accounts[0]) as WalletAccount
-                    } else {
-                        state.value.wallet = null
-                        state.value.account = null
-                        state.value.isEnoki = false
-                    }
-                }
-            })
-            unsubs.set(wallet.name, unsub)
-        } catch (err) {
-            console.error(`Failed to setup listeners for ${wallet.name}: `, err)
-        }
+    const eventsFeature = wallet.features['standard:events']
+    if (!eventsFeature) return
+
+    try {
+        const unsub = (eventsFeature as any).on('change', (properties: any) => {
+            if (!properties.accounts || state.value.wallet?.name !== wallet.name) return
+
+            if (properties.accounts.length > 0) {
+                state.value.account = markRaw(properties.accounts[0])
+            } else {
+                resetWalletState()
+            }
+        })
+        unsubs.set(wallet.name, unsub)
+    } catch (err) {
+        console.error(`Failed to setup listeners for ${wallet.name}:`, err)
     }
 }
 
-// Helper to check if a wallet supports Sui
 function isSuiWallet(wallet: Wallet): boolean {
-    const chains = wallet.chains as any as string[]
-    return chains?.some((chain: string) => chain.startsWith('sui:')) ?? false
+    return (wallet.chains as string[])?.some(chain => chain.startsWith('sui:')) ?? false
 }
 
-// Helper to get only Sui accounts from a wallet
-function getSuiAccounts(accounts: readonly WalletAccount[]): WalletAccount[] {
-    return accounts.filter(account =>
-        account.chains.some(chain => chain.startsWith('sui:'))
-    )
+function getSuiAccounts(accounts: readonly WalletAccount[], trustAllIfEmpty = false): WalletAccount[] {
+    const filtered = accounts.filter(acc => acc.chains?.some(c => c.startsWith('sui:')))
+
+    // Fallback for wallets (like Phantom) that don't populate account chains
+    return filtered.length > 0 ? filtered : (trustAllIfEmpty ? [...accounts] : [])
 }
 
-// Update check function to filter wallets
 function checkForConnectedWallet() {
-    if (import.meta.server) return
-    if (!walletsApi) return
+    if (import.meta.server || !walletsApi) return
 
-    // Skip if user intentionally disconnected
     if (localStorage.getItem(DISCONNECTED_KEY) === 'true') {
-        state.value.wallet = null
-        state.value.account = null
-        state.value.isEnoki = false
+        resetWalletState()
         return
     }
 
-    const wallets = walletsApi.get()
-
-    // Try to find a wallet with already connected accounts
-    for (const wallet of wallets) {
-        // Enforce strict chain check
+    for (const wallet of walletsApi.get()) {
         if (!isSuiWallet(wallet)) continue
 
-        const suiAccounts = getSuiAccounts(wallet.accounts)
+        const suiAccounts = getSuiAccounts(wallet.accounts, true)
         if (suiAccounts.length > 0) {
-            state.value.wallet = markRaw(wallet) as Wallet
-            state.value.account = markRaw(suiAccounts[0]!) as WalletAccount
+            state.value.wallet = markRaw(wallet)
+            state.value.account = markRaw(suiAccounts[0]!)
             state.value.isEnoki = isEnokiWallet(wallet)
             setupWalletListeners(wallet)
             return
         }
     }
 
-    // No connected wallet found
-    state.value.wallet = null
-    state.value.account = null
-    state.value.isEnoki = false
+    resetWalletState()
 }
 
 export function useWallet() {
     const isConnected = computed(() => !!state.value.account)
     const address = computed(() => state.value.account?.address ?? null)
     const activeWallet = computed(() => state.value.wallet)
+    const account = computed(() => state.value.account)
     const accounts = computed(() => state.value.wallet?.accounts ?? [])
     const isConnecting = computed(() => state.value.isConnecting)
     const error = computed(() => state.value.error)
     const isEnoki = computed(() => state.value.isEnoki)
 
-    const truncatedAddress = computed(() => {
-        if (!address.value) return null
-        return `${address.value.slice(0, 6)}...${address.value.slice(-4)}`
-    })
+    const truncatedAddress = computed(() =>
+        address.value ? `${address.value.slice(0, 6)}...${address.value.slice(-4)}` : null
+    )
 
-    const getAvailableWallets = () => {
+    function getAvailableWallets(): Wallet[] {
         const api = initWallets()
         if (!api) return []
 
-        const wallets = api.get()
-        const uniqueWallets: Wallet[] = []
         const seen = new Set<string>()
-
-        for (const wallet of wallets) {
-            // First check for strict Sui support
-            if (!isSuiWallet(wallet)) continue
-
-            if (!seen.has(wallet.name)) {
-                uniqueWallets.push(wallet)
-                seen.add(wallet.name)
-            }
-        }
-
-        return uniqueWallets
+        return api.get().filter(wallet => {
+            if (!isSuiWallet(wallet) || seen.has(wallet.name)) return false
+            seen.add(wallet.name)
+            return true
+        })
     }
 
     async function connect(walletName: string) {
@@ -169,35 +142,27 @@ export function useWallet() {
             return
         }
 
+        const connectFeature = wallet.features['standard:connect']
+        if (!connectFeature) {
+            state.value.error = 'Wallet does not support connection'
+            return
+        }
+
         state.value.isConnecting = true
         state.value.error = null
         localStorage.removeItem(DISCONNECTED_KEY)
 
         try {
-            // Standard wallet-standard connection
-            if ('standard:connect' in wallet.features) {
-                const feature = wallet.features['standard:connect'] as any
+            const result = await (connectFeature as any).connect({
+                chains: ['sui:mainnet', 'sui:testnet', 'sui:devnet']
+            })
 
-                // Explicitly request Sui chains to force Phantom/others to switch or provide correct accounts
-                const result = await feature.connect({ chains: ['sui:mainnet', 'sui:testnet', 'sui:devnet'] })
-
-                const suiAccounts = getSuiAccounts(result.accounts as WalletAccount[])
-
-                if (suiAccounts.length > 0) {
-                    state.value.wallet = markRaw(wallet) as Wallet // Keep original wallet type
-                    state.value.account = markRaw(suiAccounts[0]!) as WalletAccount
-                    state.value.isEnoki = isEnokiWallet(wallet)
-                    setupWalletListeners(wallet)
-                } else {
-                    if (result.accounts && result.accounts.length > 0) {
-                        state.value.error = 'Connected wallet is not set to Sui. Please switch to a Sui network in your wallet settings.'
-                    } else {
-                        state.value.error = 'No accounts found. Please unlock your wallet and try again.'
-                    }
-                }
-            } else {
-                console.error('[useWallet] Wallet does not support standard:connect feature')
-                state.value.error = 'Wallet does not support connection'
+            const suiAccounts = getSuiAccounts(result.accounts, isSuiWallet(wallet))
+            if (suiAccounts.length > 0) {
+                state.value.wallet = markRaw(wallet)
+                state.value.account = markRaw(suiAccounts[0]!)
+                state.value.isEnoki = isEnokiWallet(wallet)
+                setupWalletListeners(wallet)
             }
         } catch (err: any) {
             console.error('Connection failed:', err)
@@ -208,29 +173,27 @@ export function useWallet() {
     }
 
     function selectAccount(account: WalletAccount) {
-        state.value.account = markRaw(account) as WalletAccount
+        state.value.account = markRaw(account)
     }
 
     async function disconnect() {
         const wallet = toRaw(state.value.wallet)
-        if (wallet && 'standard:disconnect' in wallet.features) {
-            try {
-                const feature = wallet.features['standard:disconnect'] as any
-                await feature.disconnect()
-            } catch (err) {
-                console.error('Disconnect failed:', err)
+
+        if (wallet) {
+            const disconnectFeature = wallet.features['standard:disconnect']
+            if (disconnectFeature) {
+                try {
+                    await (disconnectFeature as any).disconnect()
+                } catch (err) {
+                    console.error('Disconnect failed:', err)
+                }
             }
+
+            unsubs.get(wallet.name)?.()
+            unsubs.delete(wallet.name)
         }
 
-        // Cleanup listener
-        if (state.value.wallet && unsubs.has(state.value.wallet.name)) {
-            unsubs.get(state.value.wallet.name)!()
-            unsubs.delete(state.value.wallet.name)
-        }
-
-        state.value.wallet = null
-        state.value.account = null
-        state.value.isEnoki = false
+        resetWalletState()
         localStorage.setItem(DISCONNECTED_KEY, 'true')
     }
 
@@ -244,7 +207,7 @@ export function useWallet() {
         address,
         truncatedAddress,
         activeWallet,
-        account: computed(() => state.value.account),
+        account,
         accounts,
         isConnecting,
         error,

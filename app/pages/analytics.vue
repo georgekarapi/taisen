@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Trophy, Users, Wallet, Plus, Calendar, Crown, Loader2 } from 'lucide-vue-next'
 import { useWallet } from '~/composables/useWallet'
-import { formatSui } from '~/types/tournament'
+// formatSui is now auto-imported from utils/tournaments.ts
 
 const { address, isConnected } = useWallet()
 const {
@@ -148,7 +148,7 @@ const gmTournamentsList = computed(() => {
                                 <div class="flex items-end gap-3 relative z-10">
                                     <span class="font-display text-4xl font-bold text-white drop-shadow-md">{{
                                         stat.value
-                                        }}</span>
+                                    }}</span>
                                     <span v-if="stat.delta"
                                         class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border"
                                         :class="stat.color === 'primary' ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-secondary/10 border-secondary/20 text-secondary'">

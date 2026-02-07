@@ -1,6 +1,4 @@
-import type { Tournament, TournamentDisplay } from '~/types/tournament'
 import { Transaction } from '@mysten/sui/transactions'
-import { TournamentStatus, getDisplayStatus, formatSui } from '~/types/tournament'
 import { useGames } from './useGames'
 import { useWallet } from './useWallet'
 
@@ -51,8 +49,8 @@ function toDisplayFormat(tournament: Tournament): TournamentDisplay {
         'ENDED': { statusColor: 'cyber-purple', iconColor: 'text-gray-500' },
     }
 
-    const colors = statusColors[displayStatus] || statusColors['ENDED']
-    const { statusColor, iconColor } = colors
+    const colors = statusColors[displayStatus] || statusColors['ENDED']!
+    const { statusColor, iconColor } = colors as { statusColor: string; iconColor: string }
 
     // Format countdown/time display
     let countdown: string
@@ -74,7 +72,7 @@ function toDisplayFormat(tournament: Tournament): TournamentDisplay {
         countdown = tournamentDate.toLocaleDateString()
     }
 
-    const defaultBanner = '/images/banners/default.jpg'
+    const defaultBanner = '/images/banners/default.webp'
 
     return {
         id: tournament.id,
@@ -187,6 +185,26 @@ export function useTournaments() {
             tournamentsCache.value = allTournaments
             lastFetch.value = Date.now()
             tournaments.value = allTournaments
+
+            // Sort tournaments: LIVE first, then UPCOMING, then ENDED
+            allTournaments.sort((a, b) => {
+                const statusA = getDisplayStatus(a.status, a.date)
+                const statusB = getDisplayStatus(b.status, b.date)
+
+                const priority = { 'LIVE': 0, 'UPCOMING': 1, 'ENDED': 2 }
+
+                if (priority[statusA] !== priority[statusB]) {
+                    return priority[statusA] - priority[statusB]
+                }
+
+                // Secondary sort:
+                // UPCOMING: earliest date first
+                // OTHERS: latest date first (newest)
+                if (statusA === 'UPCOMING') {
+                    return a.date - b.date
+                }
+                return b.date - a.date
+            })
 
             return allTournaments
         } catch (err: any) {

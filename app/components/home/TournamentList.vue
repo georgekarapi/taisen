@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { Trophy, Clock, Loader2 } from 'lucide-vue-next'
+import { Trophy, Clock } from 'lucide-vue-next'
 
 const { fetchAllTournaments, getDisplayTournaments, loading, error } = useTournaments()
 
 // Filter state
 const activeFilter = ref<'all' | 'LIVE' | 'UPCOMING' | 'ENDED'>('all')
 
+// Track if initial fetch has completed
+const hasFetched = ref(false)
+
 // Fetch tournaments on mount
 onMounted(async () => {
     await fetchAllTournaments()
+    hasFetched.value = true
 })
 
 // Get display tournaments
@@ -21,6 +25,9 @@ const filteredTournaments = computed(() => {
     }
     return displayTournaments.value.filter(t => t.status === activeFilter.value)
 })
+
+// Show skeleton when loading OR when hasn't fetched yet
+const showSkeleton = computed(() => loading.value || !hasFetched.value)
 </script>
 
 <template>
@@ -50,10 +57,9 @@ const filteredTournaments = computed(() => {
             </div>
         </div>
 
-        <!-- Loading State -->
-        <div v-if="loading" class="flex items-center justify-center py-20">
-            <Loader2 class="w-8 h-8 text-primary animate-spin" />
-            <span class="ml-3 text-slate-400 font-display uppercase tracking-wider">Loading tournaments...</span>
+        <!-- Loading State with Skeleton -->
+        <div v-if="showSkeleton" class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+            <HomeTournamentCardSkeleton v-for="i in 4" :key="i" />
         </div>
 
         <!-- Error State -->
@@ -73,7 +79,7 @@ const filteredTournaments = computed(() => {
 
         <!-- Tournament Grid -->
         <div v-else class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-            <CyberCard v-for="tournament in filteredTournaments" :key="tournament.id" :tournament="tournament" />
+            <TournamentCard v-for="tournament in filteredTournaments" :key="tournament.id" :tournament="tournament" />
         </div>
     </section>
 </template>
