@@ -1,21 +1,18 @@
 import { ref, computed, onMounted, markRaw, toRaw } from 'vue'
 import { getWallets, type Wallet, type WalletAccount } from '@wallet-standard/core'
-import { isEnokiWallet } from '@mysten/enoki'
 
 interface WalletState {
     wallet: Wallet | null
     account: WalletAccount | null
     isConnecting: boolean
     error: string | null
-    isEnoki: boolean
 }
 
 const state = ref<WalletState>({
     wallet: null,
     account: null,
     isConnecting: false,
-    error: null,
-    isEnoki: false
+    error: null
 })
 
 export const DISCONNECTED_KEY = 'taisen_wallet_disconnected'
@@ -25,9 +22,9 @@ const unsubs = new Map<string, () => void>()
 
 // Consolidated state reset
 function resetWalletState() {
+    console.log('[useWallet] Resetting wallet state (clearing wallet and account)')
     state.value.wallet = null
     state.value.account = null
-    state.value.isEnoki = false
 }
 
 function initWallets() {
@@ -81,18 +78,21 @@ function checkForConnectedWallet() {
     if (import.meta.server || !walletsApi) return
 
     if (localStorage.getItem(DISCONNECTED_KEY) === 'true') {
+        console.log('[useWallet] User is explicitly disconnected, skipping auto-connect')
         resetWalletState()
         return
     }
+
+    console.log('[useWallet] Checking for connected wallets...')
 
     for (const wallet of walletsApi.get()) {
         if (!isSuiWallet(wallet)) continue
 
         const suiAccounts = getSuiAccounts(wallet.accounts, true)
         if (suiAccounts.length > 0) {
+            console.log('[useWallet] Found connected wallet:', wallet.name, 'with account:', suiAccounts[0]!.address)
             state.value.wallet = markRaw(wallet)
             state.value.account = markRaw(suiAccounts[0]!)
-            state.value.isEnoki = isEnokiWallet(wallet)
             setupWalletListeners(wallet)
             return
         }
@@ -109,7 +109,6 @@ export function useWallet() {
     const accounts = computed(() => state.value.wallet?.accounts ?? [])
     const isConnecting = computed(() => state.value.isConnecting)
     const error = computed(() => state.value.error)
-    const isEnoki = computed(() => state.value.isEnoki)
 
     const truncatedAddress = computed(() =>
         address.value ? `${address.value.slice(0, 6)}...${address.value.slice(-4)}` : null
@@ -128,6 +127,7 @@ export function useWallet() {
     }
 
     async function connect(walletName: string) {
+        console.log('[useWallet] connect() called for:', walletName)
         if (import.meta.server) return
 
         const api = initWallets()
@@ -161,7 +161,6 @@ export function useWallet() {
             if (suiAccounts.length > 0) {
                 state.value.wallet = markRaw(wallet)
                 state.value.account = markRaw(suiAccounts[0]!)
-                state.value.isEnoki = isEnokiWallet(wallet)
                 setupWalletListeners(wallet)
             }
         } catch (err: any) {
@@ -177,24 +176,31 @@ export function useWallet() {
     }
 
     async function disconnect() {
+        console.log('[useWallet] Disconnecting...')
+        localStorage.setItem(DISCONNECTED_KEY, 'true')
+        resetWalletState()
+
         const wallet = toRaw(state.value.wallet)
 
         if (wallet) {
+            console.log('[useWallet] Removing features for wallet:', wallet.name)
             const disconnectFeature = wallet.features['standard:disconnect']
             if (disconnectFeature) {
                 try {
+                    console.log('[useWallet] Calling standard:disconnect for', wallet.name)
                     await (disconnectFeature as any).disconnect()
                 } catch (err) {
-                    console.error('Disconnect failed:', err)
+                    console.error('[useWallet] Disconnect feature failed:', err)
                 }
+            } else {
+                console.log('[useWallet] standard:disconnect not supported by', wallet.name)
             }
 
             unsubs.get(wallet.name)?.()
             unsubs.delete(wallet.name)
         }
 
-        resetWalletState()
-        localStorage.setItem(DISCONNECTED_KEY, 'true')
+        console.log('[useWallet] Disconnected. DISCONNECTED_KEY set to true')
     }
 
     onMounted(() => {
@@ -211,7 +217,6 @@ export function useWallet() {
         accounts,
         isConnecting,
         error,
-        isEnoki,
         connect,
         disconnect,
         selectAccount,

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { X, ChevronRight, ShieldCheck, User, Check, ChevronLeft, LogOut } from 'lucide-vue-next'
 import { useWallet } from '~/composables/useWallet'
-import { useEnokiWallet } from '~/composables/useEnokiWallet'
 import type { Wallet } from '@wallet-standard/core'
 import {
     Dialog,
@@ -20,24 +19,13 @@ const emit = defineEmits<{
 }>()
 
 const { getAvailableWallets, connect: connectStandard, isConnecting: isConnectingStandard, activeWallet, selectAccount, address: activeAddress, refresh, disconnect } = useWallet()
-const { connect: connectEnoki, isConnecting: isConnectingEnoki } = useEnokiWallet()
 
-const isConnecting = computed(() => isConnectingStandard.value || isConnectingEnoki.value)
+const isConnecting = computed(() => isConnectingStandard.value)
 
 const wallets = computed(() => getAvailableWallets())
 const selectedForAccounts = ref<Wallet | null>(null)
 
 const handleConnect = async (wallet: Wallet) => {
-    // Specialized flow for Google/Enoki
-    if (wallet.name.toLowerCase().includes('google')) {
-        await connectEnoki()
-        refresh() // Signal generalized state to update
-        if (!isConnectingEnoki.value) {
-            emit('close')
-        }
-        return
-    }
-
     // If it's already connected and has multiple accounts, let user pick
     if (wallet.accounts.length > 1) {
         selectedForAccounts.value = wallet

@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@internationalized/date": "^3.11.0",
-    "@mysten/enoki": "^1.0.2",
     "@mysten/sui": "^2.3.1",
     "@nuxt/eslint": "1.13.0",
     "@nuxt/fonts": "0.13.0",
