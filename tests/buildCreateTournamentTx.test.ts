@@ -9,7 +9,10 @@ const GAME_REGISTRY_ID = '0x' + 'cc'.repeat(32)
 
 const baseParams = {
     name: 'Test Tournament',
-    location: 'Global (Net)',
+    isRemote: false,
+    venueAddress: '123 Main St',
+    venueCity: 'Test City',
+    venueCountry: 'Test Country',
     date: 1700000000000,
     gameType: 'yugioh',
     description: 'A test tournament',
@@ -47,14 +50,14 @@ describe('buildCreateTournamentTx', () => {
         }
     })
 
-    it('passes exactly 10 arguments to the moveCall', () => {
+    it('passes exactly 13 arguments to the moveCall', () => {
         const tx = buildCreateTournamentTx(baseParams, PACKAGE_ID, PLATFORM_CONFIG_ID, GAME_REGISTRY_ID)
         const data = tx.getData()
 
         const moveCall = data.commands[1]
         if (moveCall.$kind === 'MoveCall') {
-            // config, registry, name, location, date, game_type, description, entry_fee, gm_fee_bps, payment
-            expect(moveCall.MoveCall.arguments).toHaveLength(10)
+            // config, registry, name, is_remote, venue_address, venue_city, venue_country, date, game_type, description, entry_fee, gm_fee_bps, payment
+            expect(moveCall.MoveCall.arguments).toHaveLength(13)
         }
     })
 
@@ -119,6 +122,19 @@ describe('buildCreateTournamentTx', () => {
                     expect(value).toBe(3_000_000_000n) // 1 SUI creation + 2 SUI sponsor
                 }
             }
+        }
+    })
+
+    it('works with remote tournament and empty venue fields', () => {
+        const params = { ...baseParams, isRemote: true, venueAddress: '', venueCity: '', venueCountry: '' }
+        const tx = buildCreateTournamentTx(params, PACKAGE_ID, PLATFORM_CONFIG_ID, GAME_REGISTRY_ID)
+        const data = tx.getData()
+
+        expect(data.commands).toHaveLength(2)
+        expect(data.commands[1].$kind).toBe('MoveCall')
+
+        if (data.commands[1].$kind === 'MoveCall') {
+            expect(data.commands[1].MoveCall.arguments).toHaveLength(13)
         }
     })
 })

@@ -10,7 +10,10 @@ const CREATION_FEE_MIST = 1_000_000_000n // 1 SUI
 export function buildCreateTournamentTx(
     params: {
         name: string
-        location: string
+        isRemote: boolean
+        venueAddress: string
+        venueCity: string
+        venueCountry: string
         date: number
         gameType: string
         description: string
@@ -33,7 +36,10 @@ export function buildCreateTournamentTx(
             tx.object(platformConfigId),
             tx.object(gameRegistryId),
             tx.pure.string(params.name),
-            tx.pure.string(params.location),
+            tx.pure.bool(params.isRemote),
+            tx.pure.string(params.venueAddress),
+            tx.pure.string(params.venueCity),
+            tx.pure.string(params.venueCountry),
             tx.pure.u64(params.date),
             tx.pure.string(params.gameType),
             tx.pure.string(params.description),
@@ -58,7 +64,10 @@ function parseTournament(obj: any): Tournament {
     return {
         id: obj.data?.objectId || obj.objectId || '',
         name: fields.name || '',
-        location: fields.location || '',
+        isRemote: fields.is_remote ?? true,
+        venueAddress: fields.venue_address || '',
+        venueCity: fields.venue_city || '',
+        venueCountry: fields.venue_country || '',
         date: Number(fields.date || 0),
         gameType: fields.game_type || '',
         description: fields.description || '',
@@ -117,7 +126,10 @@ function toDisplayFormat(tournament: Tournament): TournamentDisplay {
         participants: tournament.participants,
         gameMaster: tournament.gameMaster,
         description: tournament.description,
-        location: tournament.location,
+        isRemote: tournament.isRemote,
+        venueAddress: tournament.venueAddress,
+        venueCity: tournament.venueCity,
+        venueCountry: tournament.venueCountry,
         date: tournamentDate,
     }
 }
@@ -410,7 +422,10 @@ export function useTournaments() {
      */
     async function createTournament(params: {
         name: string
-        location: string
+        isRemote: boolean
+        venueAddress: string
+        venueCity: string
+        venueCountry: string
         date: number
         gameType: string
         description: string

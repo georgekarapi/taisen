@@ -16,7 +16,10 @@ const router = useRouter()
 const formData = ref({
     game: games[0]?.slug || '',
     name: '',
-    region: 'Global (Net)',
+    isRemote: true,
+    venueAddress: '',
+    venueCity: '',
+    venueCountry: '',
     launchTime: undefined as Date | undefined,
     description: '',
     entryFee: 10,
@@ -45,12 +48,18 @@ const isSponsorRequired = computed(() => {
     return formData.value.entryFee === 0 && (formData.value.sponsorAmount || 0) <= 0
 })
 
+const isVenueValid = computed(() => {
+    if (formData.value.isRemote) return true
+    return formData.value.venueCity.trim() !== '' && formData.value.venueCountry.trim() !== ''
+})
+
 const isValid = computed(() => {
     return formData.value.game &&
         formData.value.name &&
         formData.value.launchTime &&
         isGmAllocationValid.value &&
-        !isSponsorRequired.value
+        !isSponsorRequired.value &&
+        isVenueValid.value
 })
 
 const handleCreateTournament = async () => {
@@ -59,7 +68,10 @@ const handleCreateTournament = async () => {
     const success = await createTournament({
         name: formData.value.name,
         gameType: formData.value.game,
-        location: formData.value.region,
+        isRemote: formData.value.isRemote,
+        venueAddress: formData.value.isRemote ? '' : formData.value.venueAddress,
+        venueCity: formData.value.isRemote ? '' : formData.value.venueCity,
+        venueCountry: formData.value.isRemote ? '' : formData.value.venueCountry,
         date: formData.value.launchTime!.getTime(),
         description: formData.value.description,
         entryFee: BigInt(Math.round(formData.value.entryFee * 1_000_000_000)),
@@ -138,30 +150,46 @@ const handleCreateTournament = async () => {
                                     placeholder="e.g. Yu-Gi-Oh! Thessaloniki Open 2025" />
                             </div>
 
-                            <div>
+                            <div class="col-span-1 md:col-span-2">
                                 <label class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
-                                    Region Coordinates
+                                    Tournament Type
                                 </label>
-                                <Select v-model="formData.region">
-                                    <SelectTrigger class="w-full bg-black/60 border-slate-700 text-slate-100 h-12">
-                                        <SelectValue placeholder="Select Region" />
-                                    </SelectTrigger>
-                                    <SelectContent class="bg-slate-950 border-slate-800">
-                                        <SelectItem value="Global (Net)"
-                                            class="text-slate-100 focus:bg-slate-900 focus:text-white">Global (Net)
-                                        </SelectItem>
-                                        <SelectItem value="NA - West Sector"
-                                            class="text-slate-100 focus:bg-slate-900 focus:text-white">NA - West Sector
-                                        </SelectItem>
-                                        <SelectItem value="EU - Central Core"
-                                            class="text-slate-100 focus:bg-slate-900 focus:text-white">EU - Central Core
-                                        </SelectItem>
-                                        <SelectItem value="APAC - Rim"
-                                            class="text-slate-100 focus:bg-slate-900 focus:text-white">APAC - Rim
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <div class="flex gap-2">
+                                    <button type="button"
+                                        class="flex-1 h-12 font-display text-sm uppercase tracking-widest font-bold border transition-all duration-200"
+                                        :class="formData.isRemote
+                                            ? 'bg-secondary/20 border-secondary text-secondary shadow-neon-blue'
+                                            : 'bg-black/40 border-slate-700 text-slate-400 hover:border-slate-500'"
+                                        @click="formData.isRemote = true">
+                                        Online
+                                    </button>
+                                    <button type="button"
+                                        class="flex-1 h-12 font-display text-sm uppercase tracking-widest font-bold border transition-all duration-200"
+                                        :class="!formData.isRemote
+                                            ? 'bg-primary/20 border-primary text-primary shadow-neon-red'
+                                            : 'bg-black/40 border-slate-700 text-slate-400 hover:border-slate-500'"
+                                        @click="formData.isRemote = false">
+                                        In-Person
+                                    </button>
+                                </div>
                             </div>
+
+                            <template v-if="!formData.isRemote">
+                                <div class="col-span-1 md:col-span-2">
+                                    <CyberInput v-model="formData.venueAddress" label="Venue Address"
+                                        placeholder="e.g. 123 Main Street" />
+                                </div>
+                                <div>
+                                    <CyberInput v-model="formData.venueCity" label="City"
+                                        placeholder="e.g. Thessaloniki"
+                                        :class="{ 'border-red-500': !formData.isRemote && !formData.venueCity.trim() }" />
+                                </div>
+                                <div>
+                                    <CyberInput v-model="formData.venueCountry" label="Country"
+                                        placeholder="e.g. Greece"
+                                        :class="{ 'border-red-500': !formData.isRemote && !formData.venueCountry.trim() }" />
+                                </div>
+                            </template>
 
                             <div>
                                 <DateTimePicker v-model="formData.launchTime" label="Date & Time"
