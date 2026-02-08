@@ -9,6 +9,11 @@ interface ContractMatch {
     nextMatchSlot: number
 }
 
+interface Participant {
+    address: string
+    username: string
+}
+
 interface Tournament {
     id: string
     name: string
@@ -23,7 +28,7 @@ interface Tournament {
     gmFeeBps: number
     sponsorPool: bigint
     playerPool: bigint
-    participants: string[]
+    participants: Participant[]
     status: TournamentStatus
     winner: string | null
     gameMaster: string
@@ -46,7 +51,7 @@ interface TournamentDisplay {
     iconColor: string
     entryFee: string
     sponsorPool: string
-    participants: string[]
+    participants: Participant[]
     gameMaster: string
     description: string
     isRemote: boolean
@@ -55,4 +60,3 @@ interface TournamentDisplay {
     venueCountry: string
     date: Date
 }
-

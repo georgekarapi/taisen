@@ -3,6 +3,7 @@ import { Trophy, Shield, Zap, Users, Wallet, Loader2 } from 'lucide-vue-next'
 import { useBreadcrumbs } from '~/composables/useBreadcrumbs'
 import { useWallet } from '~/composables/useWallet'
 import UserAvatar from '~/components/common/UserAvatar.vue'
+import RegisterDialog from '~/components/tournaments/RegisterDialog.vue'
 // Utility functions (formatSui, truncateAddress) and types are now auto-imported or global
 
 definePageMeta({
@@ -20,6 +21,7 @@ const { setBreadcrumbs } = useBreadcrumbs()
 const tournament = ref<any>(null)
 const displayTournament = ref<any>(null)
 const registering = ref(false)
+const showRegisterDialog = ref(false)
 
 // Fetch tournament on mount
 onMounted(async () => {
@@ -76,16 +78,16 @@ const timerDisplay = computed(() => {
 
 const participantsList = computed(() => {
     if (!tournament.value) return []
-    return tournament.value.participants.map((addr: string, idx: number) => ({
+    return tournament.value.participants.map((p: Participant, idx: number) => ({
         id: idx,
-        name: truncateAddress(addr),
+        name: p.username || truncateAddress(p.address),
         title: 'Participant'
     }))
 })
 
 const isRegistered = computed(() => {
     if (!tournament.value || !fullAddress.value) return false
-    return tournament.value.participants.includes(fullAddress.value)
+    return tournament.value.participants.some((p: Participant) => p.address === fullAddress.value)
 })
 
 const isGM = computed(() => {
@@ -95,13 +97,19 @@ const isGM = computed(() => {
     return gm === me
 })
 
-async function handleRegister() {
+function handleRegister() {
     if (!tournament.value || !isConnected.value) return
+    showRegisterDialog.value = true
+}
+
+async function onConfirmRegistration(username: string) {
+    if (!tournament.value) return
 
     try {
         registering.value = true
-        const success = await registerForTournament(tournamentId, tournament.value.entryFee)
+        const success = await registerForTournament(tournamentId, tournament.value.entryFee, username)
         if (success) {
+            showRegisterDialog.value = false
             // Re-fetch to update UI
             const data = await fetchTournament(tournamentId)
             if (data) {
@@ -121,9 +129,10 @@ const bracketMatches = computed<BracketMatch[]>(() => {
     return tournament.value.matches.map((m: ContractMatch) => {
         const formatPlayer = (addr: string | null, isWinner: boolean, isLoser: boolean): BracketPlayer | null => {
             if (!addr) return null
+            const participant = tournament.value.participants.find((p: Participant) => p.address === addr)
             return {
                 id: addr,
-                name: truncateAddress(addr),
+                name: participant?.username || truncateAddress(addr),
                 avatar: `https://api.dicebear.com/9.x/avataaars-neutral/svg?seed=${addr}`,
                 score: isWinner ? 1 : 0,
                 status: isWinner ? 'winner' : isLoser ? 'loser' : 'playing'
@@ -422,7 +431,7 @@ const bracketRounds = computed<BracketRound[]>(() => {
                         <div
                             class="absolute inset-0 bg-accent-blue/5 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                         </div>
-                        <UserAvatar :address="tournament.participants[user.id]" size="10"
+                        <UserAvatar :address="tournament.participants[user.id]?.address" size="10"
                             class-name="rounded p-[1px] bg-linear-to-br from-blue-500 to-purple-600" />
 
 
@@ -444,7 +453,7 @@ const bracketRounds = computed<BracketRound[]>(() => {
         </div>
 
         <!-- Sticky Footer -->
-        <div v-if="!isRegistered && displayTournament?.status !== 'ENDED'"
+        <div v-if="!isRegistered && displayTournament?.status === 'UPCOMING'"
             class="fixed bottom-0 left-0 lg:left-24 right-0 p-0 z-40 pointer-events-none flex justify-center">
             <div
                 class="bg-[#0A0F1C]/95 backdrop-blur-xl border-t border-white/10 shadow-[0_-10px_40px_-15px_rgba(0,0,0,1)] w-full max-w-[1920px] py-6 px-8 lg:px-12 flex flex-col md:flex-row items-center justify-between gap-6 pointer-events-auto">
@@ -492,6 +501,8 @@ const bracketRounds = computed<BracketRound[]>(() => {
             </div>
         </div>
 
+        <RegisterDialog v-if="tournament" v-model="showRegisterDialog" :entry-fee="prizePool.entry"
+            :loading="registering" @confirm="onConfirmRegistration" />
     </div>
 
 </template>

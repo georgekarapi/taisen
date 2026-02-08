@@ -99,8 +99,7 @@ const handleCreateTournament = async () => {
                 <div>
                     <h1
                         class="text-4xl md:text-5xl font-display font-black text-white uppercase tracking-tighter leading-none">
-                        Create Tournament<span
-                            class="text-transparent bg-clip-text bg-linear-to-r from-secondary to-white">Tournament</span>
+                        Create Tournament
                     </h1>
                 </div>
                 <div class="flex items-center gap-3 text-sm font-medium text-slate-400 mt-4 md:mt-0">
@@ -156,18 +155,18 @@ const handleCreateTournament = async () => {
                                 </label>
                                 <div class="flex gap-2">
                                     <button type="button"
-                                        class="flex-1 h-12 font-display text-sm uppercase tracking-widest font-bold border transition-all duration-200"
+                                        class="flex-1 h-12 font-display text-sm uppercase tracking-widest font-bold border-2 transition-all duration-300"
                                         :class="formData.isRemote
-                                            ? 'bg-secondary/20 border-secondary text-secondary shadow-neon-blue'
-                                            : 'bg-black/40 border-slate-700 text-slate-400 hover:border-slate-500'"
+                                            ? 'border-white bg-slate-800/60 text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]'
+                                            : 'border-slate-800 bg-black/40 text-slate-500 hover:border-slate-700 hover:text-white'"
                                         @click="formData.isRemote = true">
                                         Online
                                     </button>
                                     <button type="button"
-                                        class="flex-1 h-12 font-display text-sm uppercase tracking-widest font-bold border transition-all duration-200"
+                                        class="flex-1 h-12 font-display text-sm uppercase tracking-widest font-bold border-2 transition-all duration-300"
                                         :class="!formData.isRemote
-                                            ? 'bg-primary/20 border-primary text-primary shadow-neon-red'
-                                            : 'bg-black/40 border-slate-700 text-slate-400 hover:border-slate-500'"
+                                            ? 'border-white bg-slate-800/60 text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]'
+                                            : 'border-slate-800 bg-black/40 text-slate-500 hover:border-slate-700 hover:text-white'"
                                         @click="formData.isRemote = false">
                                         In-Person
                                     </button>

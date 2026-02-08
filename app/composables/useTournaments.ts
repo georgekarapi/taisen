@@ -75,7 +75,10 @@ function parseTournament(obj: any): Tournament {
         gmFeeBps: Number(fields.gm_fee_bps || 0),
         sponsorPool: BigInt(fields.sponsor_pool?.fields?.balance || fields.sponsor_pool || 0),
         playerPool: BigInt(fields.player_pool?.fields?.balance || fields.player_pool || 0),
-        participants: fields.participants || [],
+        participants: (fields.participants || []).map((p: any) => ({
+            address: p.fields?.address || p.address || '',
+            username: p.fields?.username || p.username || ''
+        })),
         status: Number(fields.status || 0) as TournamentStatus,
         winner: fields.winner || null,
         gameMaster: fields.game_master || '',
@@ -363,7 +366,7 @@ export function useTournaments() {
     /**
      * Register for a tournament
      */
-    async function registerForTournament(tournamentId: string, entryFee: bigint): Promise<boolean> {
+    async function registerForTournament(tournamentId: string, entryFee: bigint, username: string): Promise<boolean> {
         if (!activeWallet.value) {
             error.value = 'Wallet not connected'
             return false
@@ -389,6 +392,7 @@ export function useTournaments() {
                 target: `${packageId}::tournament::register`,
                 arguments: [
                     tx.object(tournamentId),
+                    tx.pure.string(username),
                     paymentCoin
                 ]
             })

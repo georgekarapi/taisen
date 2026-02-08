@@ -9,9 +9,7 @@ const sidebarGames = computed(() => games.filter(g => g.logo))
     <nav class="flex h-full w-24 flex-shrink-0 flex-col items-center border-r border-cyber-panel bg-cyber-panel z-40">
         <div class="mb-8 flex w-full justify-center py-6">
             <NuxtLink to="/">
-                <img alt="Taisen Logo"
-                    src="/images/logo/taisenlogo.svg"
-                    class="w-[60px] p-[5px] mix-blend-screen" />
+                <img alt="Taisen Logo" src="/images/logo/taisenlogo.svg" class="w-[60px] mix-blend-screen" />
             </NuxtLink>
         </div>
 
@@ -30,12 +28,6 @@ const sidebarGames = computed(() => games.filter(g => g.logo))
                     {{ game.title }}
                 </div>
             </NuxtLink>
-        </div>
-
-        <div class="mb-8 mt-auto flex w-full justify-center">
-            <a href="#" class="text-white/40 transition-all duration-300 hover:text-white">
-                <Settings class="h-6 w-6" />
-            </a>
         </div>
     </nav>
 </template>

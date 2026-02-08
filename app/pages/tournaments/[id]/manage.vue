@@ -74,10 +74,10 @@ const stats = computed(() => {
 // Participants list for the table
 const players = computed(() => {
     if (!tournament.value) return []
-    return tournament.value.participants.map((addr: string, idx: number) => ({
+    return tournament.value.participants.map((p: Participant, idx: number) => ({
         id: idx + 1,
-        address: addr,
-        name: truncateAddress(addr),
+        address: p.address,
+        name: p.username || truncateAddress(p.address),
         status: 'REGISTERED' // Placeholder - could be enhanced with match data
     }))
 })
@@ -93,9 +93,10 @@ const bracketMatches = computed<BracketMatch[]>(() => {
         // Helper to format player
         const formatPlayer = (addr: string | null, isWinner: boolean, isLoser: boolean): BracketPlayer | null => {
             if (!addr) return null
+            const participant = tournament.value.participants.find((p: Participant) => p.address === addr)
             return {
                 id: addr,
-                name: truncateAddress(addr),
+                name: participant?.username || truncateAddress(addr),
                 avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${addr}`,
                 score: isWinner ? 1 : 0, // Contract matches don't track score, only winner
                 status: isWinner ? 'winner' : isLoser ? 'loser' : 'playing'
@@ -199,85 +200,20 @@ const bracketRounds = computed<BracketRound[]>(() => {
                 </CyberPanel>
             </div>
 
+
+
             <div class="flex flex-col lg:flex-row gap-8">
-                <!-- Active Players Table -->
+                <!-- Tournament Bracket -->
                 <div class="flex-1 order-2 lg:order-1 relative">
-                    <div
-                        class="clip-corner-lg bg-surface-dark border border-white/5 shadow-2xl overflow-hidden relative">
-                        <!-- Locked Overlay -->
-                        <div v-if="displayTournament?.status === 'UPCOMING'"
-                            class="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center border border-white/5">
-                            <Lock class="w-8 h-8 text-slate-600 mb-4" />
-                            <p class="text-slate-500 font-display uppercase tracking-wider text-sm font-bold">
-                                Table locked until start
-                            </p>
-                        </div>
-                        <div
-                            class="p-6 border-b border-white/5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-black/20">
-                            <h2 class="font-display font-bold text-xl text-white flex items-center gap-3">
-                                <Users class="w-5 h-5 text-secondary" />
-                                Active Players
-                            </h2>
-                            <div class="flex gap-2 w-full sm:w-auto items-center">
-                                <div class="relative flex-1 sm:flex-initial w-full sm:w-64">
-                                    <CyberInput placeholder="Search ID or Alias..." class="w-full"
-                                        container-class="w-full" variant="secondary">
-                                        <template #icon>
-                                            <Search class="w-4 h-4" />
-                                        </template>
-                                    </CyberInput>
-                                </div>
-                                <CyberButton variant="ghost" square
-                                    class="h-[42px] w-[42px] flex items-center justify-center bg-surface-light border border-white/10 hover:bg-white/10 text-white rounded-sm">
-                                    <Filter class="w-4 h-4" />
-                                </CyberButton>
-                            </div>
-                        </div>
-
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead
-                                    class="bg-black/40 text-gray-500 font-body text-xs uppercase tracking-widest border-b border-white/5">
-                                    <tr>
-                                        <th class="p-5 font-bold">#</th>
-                                        <th class="p-5 font-bold">Address</th>
-                                        <th class="p-5 font-bold">Status</th>
-                                        <th class="p-5 font-bold text-right">Ops</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-white/5 text-sm">
-                                    <tr v-for="player in players" :key="player.id"
-                                        class="group hover:bg-white/2 transition-colors">
-                                        <td class="p-5 text-gray-500 font-mono">{{ player.id }}</td>
-                                        <td class="p-5 flex items-center gap-4">
-                                            <UserAvatar :address="player.address" size="10"
-                                                class-name="border-secondary/50" />
-
-                                            <div>
-                                                <div class="font-display font-bold text-white tracking-wide">
-                                                    {{ player.name }}</div>
-                                                <div class="text-[10px] text-gray-600 font-mono">{{ player.address }}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="p-5">
-                                            <CyberBadge variant="upcoming" class="text-[10px]">
-                                                {{ player.status }}
-                                            </CyberBadge>
-                                        </td>
-                                        <td class="p-5 text-right">
-                                            <MoreVertical
-                                                class="w-4 h-4 ml-auto text-gray-600 cursor-pointer hover:text-white" />
-                                        </td>
-                                    </tr>
-                                    <tr v-if="players.length === 0">
-                                        <td colspan="4" class="p-10 text-center text-gray-500">
-                                            No participants registered yet
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                    <div v-if="bracketMatches.length > 0" class="h-full">
+                        <BracketTournamentBracket :matches="bracketMatches" :rounds="bracketRounds"
+                            :current-round-index="Math.max(0, (tournament?.currentRound || 1) - 1)" :is-gm="isGM"
+                            :tournament-id="tournamentId" />
+                    </div>
+                    <div v-else
+                        class="h-full flex items-center justify-center p-10 bg-surface-dark border border-white/5 rounded">
+                        <p class="text-slate-500 font-display uppercase tracking-widest text-sm">Bracket will be
+                            generated on start</p>
                     </div>
                 </div>
 
@@ -292,6 +228,12 @@ const bracketRounds = computed<BracketRound[]>(() => {
                             class="clip-corner bg-black border border-primary/50 shadow-[0_0_20px_rgba(255,0,60,0.15)] p-6 relative">
                             <!-- spacer to account for the top label visual space if needed, or just standard padding -->
                             <div class="space-y-6 mt-2">
+                                <p class="text-[10px] text-gray-400 leading-relaxed border-l-2 border-primary/30 pl-3">
+                                    <strong class="text-primary block mb-1">Warning:</strong>
+                                    Cancelling the tournament will immediately stop all active matches and <span
+                                        class="text-white">refund all participants</span> their entry fees. This action
+                                    cannot be undone.
+                                </p>
 
                                 <div class="grid grid-cols-2 gap-3 pt-2 border-t border-white/5">
                                     <CyberButton variant="ghost"
@@ -309,12 +251,87 @@ const bracketRounds = computed<BracketRound[]>(() => {
                 </div>
             </div>
 
-            <!-- Tournament Bracket Section -->
-            <div v-if="bracketMatches.length > 0" class="mt-8">
-                <BracketTournamentBracket :matches="bracketMatches" :rounds="bracketRounds"
-                    :current-round-index="Math.max(0, (tournament?.currentRound || 1) - 1)" :is-gm="isGM"
-                    :tournament-id="tournamentId" />
+            <!-- Active Players Table -->
+            <div class="relative mt-8">
+                <div class="clip-corner-lg bg-surface-dark border border-white/5 shadow-2xl overflow-hidden relative">
+                    <!-- Locked Overlay -->
+                    <div v-if="displayTournament?.status === 'UPCOMING'"
+                        class="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center border border-white/5">
+                        <Lock class="w-8 h-8 text-slate-600 mb-4" />
+                        <p class="text-slate-500 font-display uppercase tracking-wider text-sm font-bold">
+                            Table locked until start
+                        </p>
+                    </div>
+                    <div
+                        class="p-6 border-b border-white/5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-black/20">
+                        <h2 class="font-display font-bold text-xl text-white flex items-center gap-3">
+                            <Users class="w-5 h-5 text-secondary" />
+                            Active Players
+                        </h2>
+                        <div class="flex gap-2 w-full sm:w-auto items-center">
+                            <div class="relative flex-1 sm:flex-initial w-full sm:w-64">
+                                <CyberInput placeholder="Search ID or Alias..." class="w-full" container-class="w-full"
+                                    variant="secondary">
+                                    <template #icon>
+                                        <Search class="w-4 h-4" />
+                                    </template>
+                                </CyberInput>
+                            </div>
+                            <CyberButton variant="ghost" square
+                                class="h-[42px] w-[42px] flex items-center justify-center bg-surface-light border border-white/10 hover:bg-white/10 text-white rounded-sm">
+                                <Filter class="w-4 h-4" />
+                            </CyberButton>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead
+                                class="bg-black/40 text-gray-500 font-body text-xs uppercase tracking-widest border-b border-white/5">
+                                <tr>
+                                    <th class="p-5 font-bold">#</th>
+                                    <th class="p-5 font-bold">Address</th>
+                                    <th class="p-5 font-bold">Status</th>
+                                    <th class="p-5 font-bold text-right">Ops</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-white/5 text-sm">
+                                <tr v-for="player in players" :key="player.id"
+                                    class="group hover:bg-white/2 transition-colors">
+                                    <td class="p-5 text-gray-500 font-mono">{{ player.id }}</td>
+                                    <td class="p-5 flex items-center gap-4">
+                                        <UserAvatar :address="player.address" size="10"
+                                            class-name="border-secondary/50" />
+
+                                        <div>
+                                            <div class="font-display font-bold text-white tracking-wide">
+                                                {{ player.name }}</div>
+                                            <div class="text-[10px] text-gray-600 font-mono">{{ player.address }}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="p-5">
+                                        <CyberBadge variant="upcoming" class="text-[10px]">
+                                            {{ player.status }}
+                                        </CyberBadge>
+                                    </td>
+                                    <td class="p-5 text-right">
+                                        <MoreVertical
+                                            class="w-4 h-4 ml-auto text-gray-600 cursor-pointer hover:text-white" />
+                                    </td>
+                                </tr>
+                                <tr v-if="players.length === 0">
+                                    <td colspan="4" class="p-10 text-center text-gray-500">
+                                        No participants registered yet
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
+
+
         </template>
     </div>
 </template>

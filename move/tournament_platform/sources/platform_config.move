@@ -49,7 +49,7 @@ module tournament_platform::platform_config {
             admin: admin_id,
             owner: tx_context::sender(ctx),
             wallet: tx_context::sender(ctx),
-            creation_fee: 1_000_000_000,  // 1 SUI
+            creation_fee: 2_000_000_000,  // 2 SUI (default for testnet/mainnet)
             platform_fee_bps: 150,         // 1.5%
         };
 

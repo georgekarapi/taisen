@@ -42,6 +42,11 @@ module tournament_platform::tournament {
 
     // ============ STRUCTS ============
 
+    public struct Participant has store, copy, drop {
+        address: address,
+        username: String,
+    }
+
     public struct Tournament has key {
         id: UID,
         version: u64,
@@ -58,7 +63,7 @@ module tournament_platform::tournament {
         gm_fee_bps: u64,
         sponsor_pool: Balance<SUI>,
         player_pool: Balance<SUI>,
-        participants: vector<address>,
+        participants: vector<Participant>,
         status: u8,
         winner: Option<address>,
         current_round: u64,
@@ -94,6 +99,7 @@ module tournament_platform::tournament {
     public struct PlayerRegistered has copy, drop {
         tournament_id: ID,
         player: address,
+        username: String,
         total_participants: u64,
     }
 
@@ -213,6 +219,7 @@ module tournament_platform::tournament {
 
     public fun register(
         tournament: &mut Tournament,
+        username: String,
         payment: Coin<SUI>,
         ctx: &mut TxContext,
     ) {
@@ -225,7 +232,8 @@ module tournament_platform::tournament {
         let len = vector::length(&tournament.participants);
         let mut i = 0;
         while (i < len) {
-            assert!(*vector::borrow(&tournament.participants, i) != player, EAlreadyRegistered);
+            let participant = vector::borrow(&tournament.participants, i);
+            assert!(participant.address != player, EAlreadyRegistered);
             i = i + 1;
         };
 
@@ -237,11 +245,16 @@ module tournament_platform::tournament {
         balance::join(&mut tournament.player_pool, payment_balance);
 
         // Add participant
-        vector::push_back(&mut tournament.participants, player);
+        let participant = Participant {
+            address: player,
+            username,
+        };
+        vector::push_back(&mut tournament.participants, participant);
 
         event::emit(PlayerRegistered {
             tournament_id: object::id(tournament),
             player,
+            username,
             total_participants: len + 1,
         });
     }
@@ -423,7 +436,8 @@ module tournament_platform::tournament {
 
         let mut i = 0;
         while (i < num_players) {
-            let player = *vector::borrow(&tournament.participants, i);
+            let participant = vector::borrow(&tournament.participants, i);
+            let player = participant.address;
             if (refund_per_player > 0) {
                 let refund = coin::take(&mut tournament.player_pool, refund_per_player, ctx);
                 transfer::public_transfer(refund, player);
@@ -534,12 +548,14 @@ module tournament_platform::tournament {
             let mut winner_opt = option::none();
             
             if (player_index < num_players) {
-                match_ref.player_a = option::some(*vector::borrow(&tournament.participants, player_index));
+                let participant = vector::borrow(&tournament.participants, player_index);
+                match_ref.player_a = option::some(participant.address);
                 player_index = player_index + 1;
             };
             
             if (player_index < num_players) {
-                match_ref.player_b = option::some(*vector::borrow(&tournament.participants, player_index));
+                let participant = vector::borrow(&tournament.participants, player_index);
+                match_ref.player_b = option::some(participant.address);
                 player_index = player_index + 1;
                 match_ref.status = MATCH_READY;
             } else {
@@ -579,7 +595,7 @@ module tournament_platform::tournament {
 
         count_matches_in_round(tournament);
     }
-
+    
     fun get_round_for_match(match_id: u64, total_rounds: u64): u64 {
         let mut round = 1u64;
         let mut matches_in_round = 1u64;

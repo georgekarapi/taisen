@@ -23,11 +23,12 @@ import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
 import * as fs from "node:fs";
 
 // ── Configuration (update after deployment) ─────────────────────────
+// ── Configuration (update after deployment) ─────────────────────────
 const CONFIG = {
-    packageId: "0x8c0f217580840877e8e96826c4c4f25ba40e3f9a0f8cde7d306f4a8350aaa827",
-    platformConfigId: "0x75201387881f917bba7367873670a27d1f2d651c590ff6459b55e33e01168bc2",
-    gameRegistryId: "0x0a00783583c7543880fcf331f1b999aee0c2aa8247243c7e06c1d2809e0cbfc3",
-    adminCapId: "0xa62a8186d435eadb593ef4c36c60cdfd01c661852b2785ce6d56a9587fa59990",
+    packageId: process.env.NUXT_PUBLIC_PACKAGE_ID || "",
+    platformConfigId: process.env.NUXT_PUBLIC_PLATFORM_CONFIG_ID || "",
+    gameRegistryId: process.env.NUXT_PUBLIC_GAME_REGISTRY_ID || "",
+    adminCapId: process.env.NUXT_PUBLIC_ADMIN_CAP_ID || "",
     creationFee: 1_000_000n, // 0.001 SUI after we lower it
     fundPerParticipant: 50_000_000n, // 0.05 SUI per participant for gas + entry
 };
@@ -168,6 +169,11 @@ function findCreatedObjectId(result: any, typeSubstring: string): string | null 
 
 // ── Main ────────────────────────────────────────────────────────────
 async function main() {
+    const args = process.argv.slice(2);
+    const useTestnet = args.includes("--testnet");
+    const network = useTestnet ? "testnet" : "devnet";
+    const rpcUrl = useTestnet ? "https://fullnode.testnet.sui.io:443" : getFullnodeUrl("devnet");
+
     const privateKey = process.env.SUI_PRIVATE_KEY;
     if (!privateKey) {
         console.error("Error: SUI_PRIVATE_KEY environment variable is required");
@@ -178,18 +184,19 @@ async function main() {
     }
 
     if (!CONFIG.packageId || !CONFIG.platformConfigId || !CONFIG.gameRegistryId || !CONFIG.adminCapId) {
-        console.error("Error: CONFIG object IDs are empty. Update them after deployment.");
+        console.error("Error: One or more required environment variables are missing.");
+        console.error("Please ensure NUXT_PUBLIC_PACKAGE_ID, NUXT_PUBLIC_PLATFORM_CONFIG_ID, NUXT_PUBLIC_GAME_REGISTRY_ID, and NUXT_PUBLIC_ADMIN_CAP_ID are set.");
         process.exit(1);
     }
 
-    const client = new SuiClient({ url: getFullnodeUrl("devnet") });
+    const client = new SuiClient({ url: rpcUrl });
     const gmKeypair = Ed25519Keypair.fromSecretKey(decodeSuiPrivateKey(privateKey).secretKey);
     const gmAddress = gmKeypair.getPublicKey().toSuiAddress();
 
     console.log(`\n🎮 Tournament Seeding Script`);
     console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     console.log(`GM Address:  ${gmAddress}`);
-    console.log(`Network:     devnet`);
+    console.log(`Network:     ${network}`);
     console.log(`Package:     ${CONFIG.packageId.slice(0, 20)}...`);
 
     const balance = await client.getBalance({ owner: gmAddress });
@@ -197,58 +204,51 @@ async function main() {
 
     // ── Step 1: Register Games ──────────────────────────────────────
     console.log(`\n📝 Step 1: Registering Games`);
-    for (const game of GAMES) {
-        const tx = new Transaction();
-        tx.moveCall({
-            target: `${CONFIG.packageId}::game_registry::add_game`,
-            arguments: [
-                tx.object(CONFIG.gameRegistryId),
-                tx.object(CONFIG.adminCapId),
-                tx.pure.string(game.title),
-                tx.pure.string(game.slug),
-            ],
-        });
 
-        try {
-            await client.signAndExecuteTransaction({
-                signer: gmKeypair,
-                transaction: tx,
-                options: { showEffects: true },
-            });
-            console.log(`   ✅ ${game.title}`);
-        } catch (e: any) {
-            if (e.message?.includes("1004")) {
-                console.log(`   ℹ️  ${game.title} (already registered)`);
-            } else {
-                console.warn(`   ⚠️  ${game.title}: ${e.message?.slice(0, 80)}`);
-            }
-        }
-        await delay(300);
-    }
-
-    // ── Step 2: Lower Creation Fee ──────────────────────────────────
-    console.log(`\n💰 Step 2: Setting creation fee to 0.001 SUI`);
-    const feeTx = new Transaction();
-    feeTx.moveCall({
-        target: `${CONFIG.packageId}::platform_config::update_creation_fee`,
-        arguments: [
-            feeTx.object(CONFIG.platformConfigId),
-            feeTx.object(CONFIG.adminCapId),
-            feeTx.pure.u64(CONFIG.creationFee),
-        ],
+    // Check if we are likely the admin (simple check: do we own the AdminCap?)
+    const adminCapObj = await client.getObject({
+        id: CONFIG.adminCapId,
+        options: { showOwner: true }
     });
+    const owner = adminCapObj.data?.owner as { AddressOwner: string };
+    const adminCapOwner = owner?.AddressOwner;
+    const isAdmin = adminCapOwner === gmAddress;
 
-    try {
-        await client.signAndExecuteTransaction({
-            signer: gmKeypair,
-            transaction: feeTx,
-            options: { showEffects: true },
-        });
-        console.log(`   ✅ Creation fee updated`);
-    } catch (e: any) {
-        console.warn(`   ⚠️  ${e.message?.slice(0, 80)}`);
+    if (!isAdmin) {
+        console.log(`   ℹ️  Skipping game registration (Signer is not AdminCap owner)`);
+    } else {
+        for (const game of GAMES) {
+            const tx = new Transaction();
+            tx.moveCall({
+                target: `${CONFIG.packageId}::game_registry::add_game`,
+                arguments: [
+                    tx.object(CONFIG.gameRegistryId),
+                    tx.object(CONFIG.adminCapId),
+                    tx.pure.string(game.title),
+                    tx.pure.string(game.slug),
+                ],
+            });
+
+            try {
+                await client.signAndExecuteTransaction({
+                    signer: gmKeypair,
+                    transaction: tx,
+                    options: { showEffects: true },
+                });
+                console.log(`   ✅ ${game.title}`);
+            } catch (e: any) {
+                if (e.message?.includes("1004")) {
+                    console.log(`   ℹ️  ${game.title} (already registered)`);
+                } else {
+                    console.warn(`   ⚠️  ${game.title}: ${e.message?.slice(0, 80)}`);
+                }
+            }
+            await delay(300);
+        }
     }
-    await delay(500);
+
+    // ── Step 2: Fee Update (Handled by deploy script now) ───────────
+    // console.log(`\n💰 Step 2: Skipped (Handled by deploy script)`);
 
     // ── Step 3: Create Tournaments + Register Participants ──────────
     console.log(`\n🏆 Step 3: Creating Tournaments & Registering Participants`);
@@ -346,10 +346,15 @@ async function main() {
                 const kp = participantKeypairs[j];
                 const regTx = new Transaction();
                 const [payCoin] = regTx.splitCoins(regTx.gas, [t.entryFee]);
+                const username = `player_${j + 1}_${Math.floor(Math.random() * 1000)}`;
 
                 regTx.moveCall({
                     target: `${CONFIG.packageId}::tournament::register`,
-                    arguments: [regTx.object(tournamentId), payCoin],
+                    arguments: [
+                        regTx.object(tournamentId),
+                        regTx.pure.string(username),
+                        payCoin
+                    ],
                 });
 
                 try {

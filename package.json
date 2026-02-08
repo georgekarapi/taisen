@@ -6,7 +6,7 @@
     "build": "nuxt build",
     "build:sui": "sui move build",
     "deploy:contracts": "npx tsx move/deploy.ts",
-    "seed:tournaments": "npx tsx move/seed-tournaments.ts",
+    "seed:tournaments": "npx tsx --env-file=.env move/seed-tournaments.ts",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
