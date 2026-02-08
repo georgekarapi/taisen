@@ -4,7 +4,7 @@ import { Users, Zap, ExternalLink } from 'lucide-vue-next'
 const route = useRoute()
 const slug = route.params.slug as string
 const { getGameBySlug } = useGames()
-const { fetchAllTournaments, getDisplayTournaments, loading, error } = useTournaments()
+const { tournaments: tournamentData, fetchAllTournaments, getDisplayTournaments, loading, error } = useTournaments()
 
 const game = computed(() => getGameBySlug(slug) || {
     title: slug.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
@@ -12,6 +12,7 @@ const game = computed(() => getGameBySlug(slug) || {
     banner: '/images/banners/default.webp',
     logo: '/images/game-icons/mtg.webp',
     description: '',
+    website: '',
 })
 
 // Fetch tournaments on mount
@@ -34,6 +35,20 @@ const gameTournaments = computed(() => {
 })
 
 const showSkeleton = computed(() => !isMounted.value || loading.value || !hasFetched.value)
+
+// Quick Stats derived from on-chain data for this game
+const gameStats = computed(() => {
+    const all = tournamentData.value.filter(t => t.gameType === slug)
+    const totalTournaments = all.length
+    const totalPool = all.reduce((sum, t) => sum + t.sponsorPool + t.playerPool, 0n)
+    const totalParticipants = new Set(all.flatMap(t => t.participants)).size
+
+    return {
+        totalTournaments,
+        totalPool: formatSui(totalPool),
+        totalParticipants,
+    }
+})
 </script>
 
 <template>
@@ -127,23 +142,23 @@ const showSkeleton = computed(() => !isMounted.value || loading.value || !hasFet
                         <h3 class="text-white font-bold tracking-wider uppercase mb-4">Quick Stats</h3>
                         <div class="space-y-4">
                             <div class="flex justify-between items-center text-sm">
-                                <span class="text-white/40 uppercase tracking-widest">Global Rank</span>
-                                <span class="text-white font-mono">#402</span>
+                                <span class="text-white/40 uppercase tracking-widest">Tournaments</span>
+                                <span class="text-white font-mono">{{ gameStats.totalTournaments }}</span>
                             </div>
                             <div class="flex justify-between items-center text-sm">
-                                <span class="text-white/40 uppercase tracking-widest">Win Rate</span>
-                                <span class="text-green-400 font-mono">68.5%</span>
+                                <span class="text-white/40 uppercase tracking-widest">Players</span>
+                                <span class="text-white font-mono">{{ gameStats.totalParticipants }}</span>
                             </div>
                             <div class="flex justify-between items-center text-sm">
-                                <span class="text-white/40 uppercase tracking-widest">Total Earned</span>
-                                <span class="text-primary font-bold font-mono">1,450 SUI</span>
+                                <span class="text-white/40 uppercase tracking-widest">Total Rewards</span>
+                                <span class="text-primary font-bold font-mono">{{ gameStats.totalPool }}</span>
                             </div>
                         </div>
-                        <button
+                        <a v-if="game.website" :href="game.website" target="_blank" rel="noopener noreferrer"
                             class="w-full mt-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 text-white/60 hover:text-white">
-                            View Profile
+                            Official Page
                             <ExternalLink class="w-3 h-3" />
-                        </button>
+                        </a>
                     </CyberCard>
                 </div>
             </div>

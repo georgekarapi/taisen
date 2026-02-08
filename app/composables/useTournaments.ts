@@ -183,6 +183,7 @@ export function useTournaments() {
 
     /**
      * Fetch all tournaments from the contract
+     * Uses batch fetching: collect IDs from events, then multiGetObjects
      */
     async function fetchAllTournaments(): Promise<Tournament[]> {
         // Check cache
@@ -195,11 +196,9 @@ export function useTournaments() {
             loading.value = true
             error.value = null
 
-            // Query all Tournament type objects from the package
-            const tournamentType = `${packageId}::tournament::Tournament`
-
+            // Step 1: Collect all tournament IDs from creation events
+            const tournamentIds: string[] = []
             let cursor: any = undefined
-            const allTournaments: Tournament[] = []
 
             do {
                 const response: any = await client.queryEvents({
@@ -210,23 +209,33 @@ export function useTournaments() {
                     limit: 50,
                 })
 
-                // Extract tournament IDs from creation events
                 for (const event of response.data) {
                     const eventData = event.parsedJson as any
                     if (eventData?.tournament_id) {
-                        try {
-                            const tournament = await fetchTournament(eventData.tournament_id)
-                            if (tournament) {
-                                allTournaments.push(tournament)
-                            }
-                        } catch (err) {
-                            console.warn('Failed to fetch tournament:', eventData.tournament_id, err)
-                        }
+                        tournamentIds.push(eventData.tournament_id)
                     }
                 }
 
                 cursor = response.hasNextPage ? response.nextCursor : undefined
             } while (cursor)
+
+            // Step 2: Batch fetch all tournament objects
+            const allTournaments: Tournament[] = []
+            const chunkSize = 50
+
+            for (let i = 0; i < tournamentIds.length; i += chunkSize) {
+                const chunk = tournamentIds.slice(i, i + chunkSize)
+                const objects = await client.multiGetObjects({
+                    ids: chunk,
+                    options: { showContent: true, showOwner: true }
+                })
+
+                for (const obj of objects) {
+                    if (obj.data?.content) {
+                        allTournaments.push(parseTournament(obj))
+                    }
+                }
+            }
 
             // Update cache
             tournamentsCache.value = allTournaments
