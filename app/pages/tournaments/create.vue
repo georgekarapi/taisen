@@ -10,6 +10,8 @@ import DateTimePicker from '@/components/ui/date-time-picker/DateTimePicker.vue'
 
 const { games } = useGames()
 const { isConnected } = useWallet()
+const { createTournament, loading, error: txError } = useTournaments()
+const router = useRouter()
 
 const formData = ref({
     game: games[0]?.slug || '',
@@ -51,24 +53,23 @@ const isValid = computed(() => {
         !isSponsorRequired.value
 })
 
-const handleCreateTournament = () => {
+const handleCreateTournament = async () => {
     if (!isValid.value) return
 
-    // formatting for smart contract
-    const payload = {
+    const success = await createTournament({
         name: formData.value.name,
-        game_type: formData.value.game,
+        gameType: formData.value.game,
         location: formData.value.region,
-        date: formData.value.launchTime?.getTime(), // u64 timestamp
+        date: formData.value.launchTime!.getTime(),
         description: formData.value.description,
-        entry_fee: formData.value.entryFee * 1_000_000_000, // to MIST
-        sponsor_amount: (formData.value.sponsorAmount || 0) * 1_000_000_000, // to MIST
-        gm_fee_bps: formData.value.gmAllocation * 100, // to BPS
-    }
+        entryFee: BigInt(Math.round(formData.value.entryFee * 1_000_000_000)),
+        sponsorAmount: BigInt(Math.round((formData.value.sponsorAmount || 0) * 1_000_000_000)),
+        gmFeeBps: formData.value.gmAllocation * 100,
+    })
 
-    console.log('Creating tournament with payload:', payload)
-    // alert('Tournament creation payload prepared! Check console.')
-    // TODO: Integrate with wallet execution
+    if (success) {
+        router.push('/')
+    }
 }
 </script>
 
@@ -276,9 +277,14 @@ const handleCreateTournament = () => {
                                     You must connect wallet to create a tournament
                                 </div>
 
-                                <CyberButton variant="primary" block :disabled="!isValid || !isConnected"
+                                <div v-if="txError"
+                                    class="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded text-xs text-red-400 font-mono">
+                                    {{ txError }}
+                                </div>
+
+                                <CyberButton variant="primary" block :disabled="!isValid || !isConnected || loading"
                                     @click="handleCreateTournament">
-                                    Create
+                                    {{ loading ? 'Creating...' : 'Create' }}
                                 </CyberButton>
                             </div>
                         </div>
