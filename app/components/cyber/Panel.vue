@@ -41,10 +41,3 @@ const borderColor = computed(() => {
         </div>
     </div>
 </template>
-
-<style scoped>
-.bg-surface-dark {
-    background-color: #0A0F1C;
-    /* Matches mockups roughly */
-}
-</style>

@@ -90,7 +90,9 @@ const isRegistered = computed(() => {
 
 const isGM = computed(() => {
     if (!tournament.value || !fullAddress.value) return false
-    return tournament.value.gameMaster === fullAddress.value
+    const gm = tournament.value.gameMaster.toLowerCase()
+    const me = fullAddress.value.toLowerCase()
+    return gm === me
 })
 
 async function handleRegister() {
@@ -151,15 +153,14 @@ const bracketMatches = computed<BracketMatch[]>(() => {
     })
 })
 
+// Bracket rounds configuration
 const bracketRounds = computed<BracketRound[]>(() => {
-    const totalRounds = tournament.value?.totalRounds || 5
+    const totalRounds = tournament.value?.totalRounds || 0
     const currentRound = tournament.value?.currentRound || 1
 
-    const labels = ['Round 1', 'Round 2', 'Round 3', 'Semifinals', 'Finals']
-
-    return Array.from({ length: Math.min(totalRounds, 5) }, (_, i) => ({
+    return Array.from({ length: totalRounds }, (_, i) => ({
         id: `round-${i + 1}`,
-        label: labels[i] || `Round ${i + 1}`,
+        label: getRoundLabel(i, totalRounds),
         roundIndex: i,
         isActive: i + 1 === currentRound
     }))
@@ -423,7 +424,7 @@ const bracketRounds = computed<BracketRound[]>(() => {
 
                         <div class="flex-1 min-w-0 relative z-10">
                             <div class="text-sm font-bold text-white truncate font-display tracking-wide">{{ user.name
-                            }}
+                                }}
                             </div>
                             <div class="text-[10px] uppercase tracking-wider text-slate-500">{{ user.title }}</div>
                         </div>

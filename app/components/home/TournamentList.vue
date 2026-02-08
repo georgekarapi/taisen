@@ -8,9 +8,11 @@ const activeFilter = ref<'all' | 'LIVE' | 'UPCOMING' | 'ENDED'>('all')
 
 // Track if initial fetch has completed
 const hasFetched = ref(false)
+const isMounted = ref(false)
 
 // Fetch tournaments on mount
 onMounted(async () => {
+    isMounted.value = true
     await fetchAllTournaments()
     hasFetched.value = true
 })
@@ -26,8 +28,8 @@ const filteredTournaments = computed(() => {
     return displayTournaments.value.filter(t => t.status === activeFilter.value)
 })
 
-// Show skeleton when loading OR when hasn't fetched yet
-const showSkeleton = computed(() => loading.value || !hasFetched.value)
+// Show skeleton when loading OR when hasn't fetched yet OR not mounted
+const showSkeleton = computed(() => !isMounted.value || loading.value || !hasFetched.value)
 </script>
 
 <template>
@@ -38,37 +40,30 @@ const showSkeleton = computed(() => loading.value || !hasFetched.value)
                 TOURNAMENTS<span class="text-glow-red text-cyber-red">.</span>
             </h2>
             <div class="mt-4 flex gap-8 font-body text-lg md:mt-0">
-                <button @click="activeFilter = 'UPCOMING'"
-                    :class="activeFilter === 'UPCOMING' ? 'text-glow-red border-b-2 border-cyber-cyan pb-2 px-1 text-white' : 'text-cyber-gray transition-colors hover:text-white'">
-                    Upcoming
+                <button @click="activeFilter = 'all'"
+                    :class="activeFilter === 'all' ? 'text-glow-red border-b-2 border-white pb-2 px-1 text-white' : 'text-cyber-gray transition-colors hover:text-white'">
+                    All
                 </button>
                 <button @click="activeFilter = 'LIVE'"
                     :class="activeFilter === 'LIVE' ? 'text-glow-red border-b-2 border-cyber-red pb-2 px-1 text-white' : 'text-cyber-gray transition-colors hover:text-white'">
                     LIVE
                 </button>
-                <button @click="activeFilter = 'ENDED'"
-                    :class="activeFilter === 'ENDED' ? 'text-glow-red border-b-2 border-cyber-purple pb-2 px-1 text-white' : 'text-cyber-gray transition-colors hover:text-white'">
-                    Ended
-                </button>
-                <button @click="activeFilter = 'all'"
-                    :class="activeFilter === 'all' ? 'text-glow-red border-b-2 border-white pb-2 px-1 text-white' : 'text-cyber-gray transition-colors hover:text-white'">
-                    All
+                <button @click="activeFilter = 'UPCOMING'"
+                    :class="activeFilter === 'UPCOMING' ? 'text-glow-red border-b-2 border-cyber-cyan pb-2 px-1 text-white' : 'text-cyber-gray transition-colors hover:text-white'">
+                    Upcoming
                 </button>
             </div>
         </div>
 
-        <!-- Loading State with Skeleton -->
         <div v-if="showSkeleton" class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
             <HomeTournamentCardSkeleton v-for="i in 4" :key="i" />
         </div>
 
-        <!-- Error State -->
         <div v-else-if="error" class="text-center py-20">
             <div class="text-red-400 font-display uppercase tracking-wider mb-2">Error loading tournaments</div>
             <div class="text-slate-500 text-sm">{{ error }}</div>
         </div>
 
-        <!-- Empty State -->
         <div v-else-if="filteredTournaments.length === 0" class="text-center py-20">
             <div class="text-slate-400 font-display uppercase tracking-wider">No tournaments found</div>
             <div class="text-slate-500 text-sm mt-2">
@@ -77,8 +72,7 @@ const showSkeleton = computed(() => loading.value || !hasFetched.value)
             </div>
         </div>
 
-        <!-- Tournament Grid -->
-        <div v-else class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <div v-else class="grid grid-cols-1 gap-6 md:grid-cols-3 xl:grid-cols-4">
             <TournamentCard v-for="tournament in filteredTournaments" :key="tournament.id" :tournament="tournament" />
         </div>
     </section>

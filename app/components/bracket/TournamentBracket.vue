@@ -11,9 +11,12 @@ const props = withDefaults(
         matches: BracketMatch[]
         rounds?: BracketRound[]
         currentRoundIndex?: number
+        isGm?: boolean
+        tournamentId?: string
     }>(),
     {
-        currentRoundIndex: 0
+        currentRoundIndex: 0,
+        isGm: false
     }
 )
 
@@ -26,13 +29,15 @@ const bracketRounds = computed<BracketRound[]>(() => {
     } else {
         // Extract unique round IDs from matches and create labels
         const uniqueRoundIds = [...new Set(props.matches.map((m) => m.roundId))]
-        const labels = ['Round 1', 'Round 2', 'Round 3', 'Quarterfinals', 'Semifinals', 'Finals']
-        rounds = uniqueRoundIds.map((id, index) => ({
-            id,
-            label: labels[index] || `Round ${index + 1}`,
-            roundIndex: index,
-            isActive: index === props.currentRoundIndex
-        }))
+        const numRounds = uniqueRoundIds.length
+        rounds = uniqueRoundIds.map((id, index) => {
+            return {
+                id,
+                label: getRoundLabel(index, numRounds),
+                roundIndex: index,
+                isActive: index === props.currentRoundIndex
+            }
+        })
     }
 
     // Determine if each round is disabled (all matches are pending)
@@ -164,13 +169,15 @@ const tryGoToRound = (roundId: string) => {
 
                 <!-- Previous Round (Grouped) -->
                 <div v-if="groupedPrevMatches.length > 0"
-                    class="hidden xl:flex flex-col justify-around gap-12 w-80 opacity-40 hover:opacity-100 transition-opacity duration-300">
+                    class="hidden xl:flex flex-col justify-around gap-12 w-80 transition-all duration-300">
                     <div v-for="(group, idx) in groupedPrevMatches" :key="`prev-group-${idx}`"
                         class="relative flex flex-col gap-4">
                         <!-- Matches -->
                         <BracketMatchCard v-for="match in group" :key="match.id" :match="match" :show-connector="false"
-                            class="transition-all relative z-20"
-                            :class="bracketRounds.find(r => r.id === match.roundId)?.isDisabled ? 'cursor-not-allowed opacity-50 grayscale' : 'cursor-pointer hover:scale-105'"
+                            :is-gm="isGm" :tournament-id="tournamentId"
+                            :can-report="bracketRounds.find(r => r.id === match.roundId)?.roundIndex === currentRoundIndex"
+                            class="transition-all relative opacity-40 hover:opacity-100"
+                            :class="bracketRounds.find(r => r.id === match.roundId)?.isDisabled ? 'cursor-not-allowed grayscale' : 'cursor-pointer hover:scale-105'"
                             :title="bracketRounds.find(r => r.id === match.roundId)?.isDisabled ? 'Round Locked' : 'View Round'"
                             @click="tryGoToRound(match.roundId)" />
 
@@ -193,8 +200,10 @@ const tryGoToRound = (roundId: string) => {
                     <div v-else v-for="(group, idx) in groupedVisibleMatches" :key="`active-group-${idx}`"
                         class="relative flex flex-col gap-4">
                         <BracketMatchCard v-for="match in group" :key="match.id" :match="match"
-                            :is-active="match.status === 'in_progress'" :show-connector="false"
-                            class="shadow-[0_0_30px_rgba(0,0,0,0.5)] transform scale-105 transition-transform relative z-20" />
+                            :is-active="match.status === 'in_progress'" :show-connector="false" :is-gm="isGm"
+                            :tournament-id="tournamentId"
+                            :can-report="bracketRounds.find(r => r.id === match.roundId)?.roundIndex === currentRoundIndex"
+                            class="shadow-[0_0_30px_rgba(0,0,0,0.5)] transform scale-105 transition-transform relative" />
 
                         <!-- Bracket Connector (Only if it's a pair/group AND sending to next round) -->
                         <div v-if="group.length > 1 && nextMatches.length > 0"
@@ -210,10 +219,12 @@ const tryGoToRound = (roundId: string) => {
 
                 <!-- Next Round -->
                 <div v-if="nextMatches.length > 0"
-                    class="hidden xl:flex flex-col justify-around gap-12 w-80 opacity-40 hover:opacity-100 transition-opacity duration-300">
-                    <BracketMatchCard v-for="match in nextMatches" :key="match.id" :match="match"
-                        :show-connector="false" class="transition-all relative z-20"
-                        :class="bracketRounds.find(r => r.id === match.roundId)?.isDisabled ? 'cursor-not-allowed opacity-50 grayscale' : 'cursor-pointer hover:scale-105'"
+                    class="hidden xl:flex flex-col justify-around gap-12 w-80 transition-all duration-300">
+                    <BracketMatchCard v-for="match in nextMatches" :key="match.id" :match="match" :is-gm="isGm"
+                        :tournament-id="tournamentId"
+                        :can-report="bracketRounds.find(r => r.id === match.roundId)?.roundIndex === currentRoundIndex"
+                        :show-connector="false" class="transition-all relative opacity-40 hover:opacity-100"
+                        :class="bracketRounds.find(r => r.id === match.roundId)?.isDisabled ? 'cursor-not-allowed grayscale' : 'cursor-pointer hover:scale-105'"
                         :title="bracketRounds.find(r => r.id === match.roundId)?.isDisabled ? 'Round Locked' : 'View Round'"
                         @click="tryGoToRound(match.roundId)" />
                 </div>

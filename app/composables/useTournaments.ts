@@ -3,8 +3,6 @@ import { useGames } from './useGames'
 import { useWallet } from './useWallet'
 
 // Cache for tournaments
-const tournamentsCache = ref<Tournament[]>([])
-const lastFetch = ref<number>(0)
 const CACHE_TTL = 30_000 // 30 seconds
 
 /**
@@ -53,25 +51,9 @@ function toDisplayFormat(tournament: Tournament): TournamentDisplay {
     const colors = statusColors[displayStatus] || statusColors['ENDED']!
     const { statusColor, iconColor } = colors as { statusColor: string; iconColor: string }
 
-    // Format countdown/time display
-    let countdown: string
+    // Simplified stable countdown for SSR/Initialization
     const tournamentDate = new Date(tournament.date)
-    const now = Date.now()
-
-    if (displayStatus === 'LIVE') {
-        countdown = 'Tournament in progress'
-    } else if (displayStatus === 'UPCOMING') {
-        const diff = tournament.date - now
-        const hours = Math.floor(diff / (1000 * 60 * 60))
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-        if (hours > 24) {
-            countdown = tournamentDate.toLocaleDateString()
-        } else {
-            countdown = `Starts in ${hours}h ${minutes}m`
-        }
-    } else {
-        countdown = tournamentDate.toLocaleDateString()
-    }
+    const countdown = tournamentDate.toISOString().split('T')[0]
 
     const defaultBanner = '/images/banners/default.webp'
 
@@ -79,11 +61,11 @@ function toDisplayFormat(tournament: Tournament): TournamentDisplay {
         id: tournament.id,
         title: tournament.name,
         game: game?.title || tournament.gameType,
-        image: game?.banner || defaultBanner,
+        image: (game?.banner ?? defaultBanner) as string,
         status: displayStatus,
         prizepool: formatSui(totalPool),
         teams: `${tournament.participants.length}`,
-        countdown,
+        countdown: countdown || '',
         statusColor,
         iconColor,
         entryFee: formatSui(tournament.entryFee),
@@ -99,6 +81,9 @@ function toDisplayFormat(tournament: Tournament): TournamentDisplay {
 export function useTournaments() {
     const { client, packageId } = useSuiClient()
     const { activeWallet, account } = useWallet()
+
+    const tournamentsCache = useState<Tournament[]>('tournaments_cache', () => [])
+    const lastFetch = useState<number>('tournaments_last_fetch', () => 0)
 
     const tournaments = ref<Tournament[]>([])
     const loading = ref(false)
@@ -376,6 +361,55 @@ export function useTournaments() {
         }
     }
 
+    /**
+     * Report the result of a single match
+     */
+    async function reportMatchResult(tournamentId: string, matchId: number, winnerAddress: string): Promise<boolean> {
+        if (!activeWallet.value) {
+            error.value = 'Wallet not connected'
+            return false
+        }
+
+        try {
+            loading.value = true
+            error.value = null
+
+            const tx = new Transaction()
+            const { platformConfigId } = useSuiClient()
+
+            tx.moveCall({
+                target: `${packageId}::tournament::report_match_result`,
+                arguments: [
+                    tx.object(tournamentId),
+                    tx.object(platformConfigId),
+                    tx.pure.u64(matchId),
+                    tx.pure.address(winnerAddress)
+                ]
+            })
+
+            const features = activeWallet.value.features as any
+            const { network } = useSuiClient()
+            const chain = `sui:${network}`
+
+            if (!account.value) throw new Error('No active account')
+
+            await features['sui:signAndExecuteTransaction'].signAndExecuteTransaction({
+                transaction: tx,
+                account: account.value,
+                chain,
+            })
+
+            await refresh()
+            return true
+        } catch (err: any) {
+            console.error('Failed to report match result:', err)
+            error.value = err.message || 'Failed to report match result'
+            return false
+        } finally {
+            loading.value = false
+        }
+    }
+
     return {
         tournaments,
         loading,
@@ -388,5 +422,6 @@ export function useTournaments() {
         toDisplayFormat,
         refresh,
         registerForTournament,
+        reportMatchResult,
     }
 }

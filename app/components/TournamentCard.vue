@@ -2,9 +2,36 @@
 import { Trophy } from 'lucide-vue-next'
 import { Card } from '@/components/ui/card'
 
-defineProps<{
+const props = defineProps<{
     tournament: TournamentDisplay
 }>()
+
+const isMounted = ref(false)
+onMounted(() => {
+    isMounted.value = true
+})
+
+const countdownDisplay = computed(() => {
+    // SSR/Initialization stability: must match what useTournaments returns
+    if (!isMounted.value) {
+        return props.tournament.countdown
+    }
+
+    const { status, date } = props.tournament
+    const now = Date.now()
+    const diff = date.getTime() - now
+
+    if (status === 'LIVE') return 'Tournament in progress'
+    if (status === 'ENDED') return date.toLocaleDateString()
+
+    // UPCOMING
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+
+    if (hours > 24) return date.toLocaleDateString()
+    if (diff > 0) return `Starts in ${hours}h ${minutes}m`
+    return 'Starting soon...'
+})
 </script>
 
 <template>
@@ -53,7 +80,7 @@ defineProps<{
                 <div class="mt-auto flex items-center gap-2 border-t border-white/10 pt-4">
                     <Trophy v-if="tournament.status !== 'ENDED'" class="h-4 w-4 trophy-icon" />
                     <span class="font-mono text-sm tracking-wide countdown-text">
-                        {{ tournament.countdown }}
+                        {{ countdownDisplay }}
                     </span>
                 </div>
             </div>

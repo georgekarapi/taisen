@@ -11,6 +11,7 @@ export default defineNuxtConfig({
       tailwindcss(),
     ],
   },
+  // @ts-ignore - fonts property is valid for @nuxt/fonts
   fonts: {
     families: [
       {

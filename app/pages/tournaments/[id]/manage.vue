@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Users, Trophy, PieChart, Timer, Search, Filter, MoreVertical, Play, Pause, XCircle, AlertTriangle, Loader2, Lock } from 'lucide-vue-next'
+import { Users, Trophy, PieChart, Timer, Search, Filter, MoreVertical, Play, Pause, XCircle, Loader2, Lock } from 'lucide-vue-next'
 import { useBreadcrumbs } from '~/composables/useBreadcrumbs'
 import { useWallet } from '~/composables/useWallet'
 import UserAvatar from '~/components/common/UserAvatar.vue'
@@ -46,7 +46,9 @@ onMounted(async () => {
 // Check if current user is GM
 const isGM = computed(() => {
     if (!tournament.value || !fullAddress.value) return false
-    return tournament.value.gameMaster === fullAddress.value
+    const gm = tournament.value.gameMaster.toLowerCase()
+    const me = fullAddress.value.toLowerCase()
+    return gm === me
 })
 
 // Computed stats
@@ -81,7 +83,6 @@ const players = computed(() => {
 })
 
 // Selected player for winner declaration
-const selectedPlayer = ref<string>('')
 
 // Generate demo bracket data based on participants
 // Generate bracket data from contract matches
@@ -129,14 +130,12 @@ const bracketMatches = computed<BracketMatch[]>(() => {
 
 // Bracket rounds configuration
 const bracketRounds = computed<BracketRound[]>(() => {
-    const totalRounds = tournament.value?.totalRounds || 5
-    const currentRound = tournament.value?.currentRound || 3
+    const totalRounds = tournament.value?.totalRounds || 0
+    const currentRound = tournament.value?.currentRound || 1
 
-    const labels = ['Round 1', 'Round 2', 'Round 3', 'Semifinals', 'Finals']
-
-    return Array.from({ length: Math.min(totalRounds, 5) }, (_, i) => ({
+    return Array.from({ length: totalRounds }, (_, i) => ({
         id: `round-${i + 1}`,
-        label: labels[i] || `Round ${i + 1}`,
+        label: getRoundLabel(i, totalRounds),
         roundIndex: i,
         isActive: i + 1 === currentRound
     }))
@@ -293,35 +292,6 @@ const bracketRounds = computed<BracketRound[]>(() => {
                             class="clip-corner bg-black border border-primary/50 shadow-[0_0_20px_rgba(255,0,60,0.15)] p-6 relative">
                             <!-- spacer to account for the top label visual space if needed, or just standard padding -->
                             <div class="space-y-6 mt-2">
-                                <div>
-                                    <label
-                                        class="flex justify-between items-center text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
-                                        Manual Winner Declaration
-                                        <span
-                                            class="text-[10px] text-primary/70 border border-primary/30 px-1 rounded">R3</span>
-                                    </label>
-                                    <CyberSelect v-model="selectedPlayer" variant="secondary" class="w-full">
-                                        <option value="">Select Participant...</option>
-                                        <option v-for="p in players" :key="p.id" :value="p.address">{{ p.name }}
-                                        </option>
-                                    </CyberSelect>
-                                </div>
-
-                                <div
-                                    class="p-4 rounded border border-primary/30 bg-[linear-gradient(45deg,transparent_25%,rgba(255,0,60,0.05)_50%,transparent_75%,transparent_100%)] bg-[length:20px_20px]">
-                                    <div class="flex items-start gap-3 mb-4">
-                                        <AlertTriangle class="text-primary w-5 h-5" />
-                                        <div>
-                                            <h4 class="text-primary font-bold text-sm uppercase">Irreversible Action
-                                            </h4>
-                                            <p class="text-[10px] text-gray-400 mt-1 leading-relaxed">
-                                                Smart contract will execute automated payouts upon
-                                                confirmation.
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <CyberButton variant="primary" block>Distribute</CyberButton>
-                                </div>
 
                                 <div class="grid grid-cols-2 gap-3 pt-2 border-t border-white/5">
                                     <CyberButton variant="ghost"
@@ -342,7 +312,8 @@ const bracketRounds = computed<BracketRound[]>(() => {
             <!-- Tournament Bracket Section -->
             <div v-if="bracketMatches.length > 0" class="mt-8">
                 <BracketTournamentBracket :matches="bracketMatches" :rounds="bracketRounds"
-                    :current-round-index="Math.max(0, (tournament?.currentRound || 1) - 1)" />
+                    :current-round-index="Math.max(0, (tournament?.currentRound || 1) - 1)" :is-gm="isGM"
+                    :tournament-id="tournamentId" />
             </div>
         </template>
     </div>
