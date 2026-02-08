@@ -27,7 +27,7 @@ const formData = ref({
     sponsorAmount: 0
 })
 
-const CREATION_FEE = 1 // 1 SUI
+const CREATION_FEE = 0.1 // 0.1 SUI
 const PLATFORM_TAX_BPS = 200 // 2%
 const GAS_ESTIMATE = 0.02
 

@@ -120,31 +120,31 @@ async function main() {
             } catch (e: any) {
                 console.warn("   ⚠️ Failed to update creation fee:", e.message.split('\n')[0]);
             }
+        }
 
-            // Register Games
-            console.log("   Registering games...");
-            const GAMES = [
-                { title: "Yu-gi-oh!", slug: "yu-gi-oh" },
-                { title: "Magic: The Gathering", slug: "magic-the-gathering" },
-                { title: "Shadowverse", slug: "shadowverse" },
-                { title: "Riftbound", slug: "riftbound" },
-                { title: "Pokemon", slug: "pokemon" },
-            ];
+        // Register Games (All Networks)
+        console.log("   Registering games...");
+        const GAMES = [
+            { title: "Yu-gi-oh!", slug: "yu-gi-oh" },
+            { title: "Magic: The Gathering", slug: "magic-the-gathering" },
+            { title: "Shadowverse", slug: "shadowverse" },
+            { title: "Riftbound", slug: "riftbound" },
+            { title: "Pokemon", slug: "pokemon" },
+        ];
 
-            for (const game of GAMES) {
-                try {
-                    exec(
-                        `sui client --client.config ${SUI_CONFIG} call ` +
-                        `--package ${result.packageId} ` +
-                        `--module game_registry ` +
-                        `--function add_game ` +
-                        `--args ${result.gameRegistryId} ${result.adminCapId} "${game.title}" "${game.slug}" ` +
-                        `--gas-budget 10000000`
-                    );
-                    console.log(`   ✅ Registered ${game.title}`);
-                } catch (e: any) {
-                    console.warn(`   ⚠️ Failed to register ${game.title}:`, e.message.split('\n')[0]);
-                }
+        for (const game of GAMES) {
+            try {
+                exec(
+                    `sui client --client.config ${SUI_CONFIG} call ` +
+                    `--package ${result.packageId} ` +
+                    `--module game_registry ` +
+                    `--function add_game ` +
+                    `--args ${result.gameRegistryId} ${result.adminCapId} "${game.title}" "${game.slug}" ` +
+                    `--gas-budget 10000000`
+                );
+                console.log(`   ✅ Registered ${game.title}`);
+            } catch (e: any) {
+                console.warn(`   ⚠️ Failed to register ${game.title}:`, e.message.split('\n')[0]);
             }
         }
     } catch (error: any) {

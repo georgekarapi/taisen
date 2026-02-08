@@ -2,7 +2,7 @@ import { Transaction } from '@mysten/sui/transactions'
 import { useGames } from './useGames'
 import { useWallet } from './useWallet'
 
-const CREATION_FEE_MIST = 1_000_000_000n // 1 SUI
+const CREATION_FEE_MIST = 100_000_000n // 0.1 SUI
 
 /**
  * Build a create_tournament Transaction (pure function, testable without wallet)
