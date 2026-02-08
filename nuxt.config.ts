@@ -49,4 +49,12 @@ export default defineNuxtConfig({
       gameRegistryId: process.env.NUXT_PUBLIC_GAME_REGISTRY_ID || '',
     },
   },
+
+  nitro: {
+    preset: 'cloudflare_module',
+    cloudflare: {
+      deployConfig: true,
+      nodeCompat: true
+    }
+  },
 })

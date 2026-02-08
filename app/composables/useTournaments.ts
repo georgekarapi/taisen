@@ -2,7 +2,8 @@ import { Transaction } from '@mysten/sui/transactions'
 import { useGames } from './useGames'
 import { useWallet } from './useWallet'
 
-const CREATION_FEE_MIST = 100_000_000n // 0.1 SUI
+const DEFAULT_CREATION_FEE_MIST = 100_000_000n // 0.1 SUI (fallback)
+const creationFeeMIST = ref<bigint | null>(null)
 
 /**
  * Build a create_tournament Transaction (pure function, testable without wallet)
@@ -27,7 +28,8 @@ export function buildCreateTournamentTx(
 ): Transaction {
     const tx = new Transaction()
 
-    const totalPayment = CREATION_FEE_MIST + params.sponsorAmount
+    const fee = creationFeeMIST.value || DEFAULT_CREATION_FEE_MIST
+    const totalPayment = fee + params.sponsorAmount
     const [paymentCoin] = tx.splitCoins(tx.gas, [totalPayment])
 
     tx.moveCall({
@@ -535,10 +537,39 @@ export function useTournaments() {
         }
     }
 
+    /**
+     * Fetch the creation fee from PlatformConfig
+     */
+    async function fetchCreationFee(): Promise<bigint> {
+        if (creationFeeMIST.value !== null) return creationFeeMIST.value
+
+        try {
+            loading.value = true
+            const response = await client.getObject({
+                id: platformConfigId,
+                options: { showContent: true }
+            })
+
+            const fields = (response.data?.content as any)?.fields
+            if (fields?.creation_fee) {
+                creationFeeMIST.value = BigInt(fields.creation_fee)
+                return creationFeeMIST.value
+            }
+            return DEFAULT_CREATION_FEE_MIST
+        } catch (err) {
+            console.error('Failed to fetch creation fee:', err)
+            return DEFAULT_CREATION_FEE_MIST
+        } finally {
+            loading.value = false
+        }
+    }
+
     return {
         tournaments,
         loading,
         error,
+        creationFee: creationFeeMIST,
+        fetchCreationFee,
         fetchTournament,
         fetchAllTournaments,
         fetchGameMasterTournaments,

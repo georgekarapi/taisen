@@ -10,8 +10,12 @@ import DateTimePicker from '@/components/ui/date-time-picker/DateTimePicker.vue'
 
 const { games } = useGames()
 const { isConnected } = useWallet()
-const { createTournament, loading, error: txError } = useTournaments()
+const { createTournament, fetchCreationFee, creationFee, loading, error: txError } = useTournaments()
 const router = useRouter()
+
+onMounted(() => {
+    fetchCreationFee()
+})
 
 const formData = ref({
     game: games[0]?.slug || '',
@@ -27,7 +31,10 @@ const formData = ref({
     sponsorAmount: 0
 })
 
-const CREATION_FEE = 0.1 // 0.1 SUI
+const dynamicCreationFee = computed(() => {
+    if (creationFee.value === null) return 0.1 // Fallback for UI
+    return Number(creationFee.value) / 1_000_000_000
+})
 const PLATFORM_TAX_BPS = 200 // 2%
 const GAS_ESTIMATE = 0.02
 
@@ -36,7 +43,7 @@ const platformTax = computed(() => {
 })
 
 const totalCost = computed(() => {
-    return (CREATION_FEE + (formData.value.sponsorAmount || 0) + GAS_ESTIMATE).toFixed(2)
+    return (dynamicCreationFee.value + (formData.value.sponsorAmount || 0) + GAS_ESTIMATE).toFixed(2)
 })
 
 // Validation
@@ -261,7 +268,7 @@ const handleCreateTournament = async () => {
                                     <div class="flex justify-between items-center group">
                                         <span class="text-slate-400 group-hover:text-white transition-colors">Creation
                                             Fee</span>
-                                        <span class="text-secondary">{{ CREATION_FEE.toFixed(2) }} SUI</span>
+                                        <span class="text-secondary">{{ dynamicCreationFee.toFixed(2) }} SUI</span>
                                     </div>
                                     <div v-if="formData.sponsorAmount > 0"
                                         class="flex justify-between items-center group">
