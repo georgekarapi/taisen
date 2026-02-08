@@ -1,12 +1,19 @@
 /**
  * Tournament Seeding Script for Devnet
- * 
- * Run this script to create dummy tournaments with the connected wallet as GM.
- * 
- * Usage: npx tsx move/seed-tournaments.ts
- * 
- * Make sure to run from the wallet with address:
- * 0xc3601f88113a8a794401e92f4136fe605429deb55bce50ede9e10b373ab2fd8f
+ *
+ * Creates tournaments with participants registered.
+ * Requires AdminCap owner's private key to register games & lower creation fee.
+ *
+ * Usage:
+ *   export SUI_PRIVATE_KEY='suiprivkey1...'
+ *   npx tsx move/seed-tournaments.ts
+ *
+ * The script will:
+ * 1. Register all games in the GameRegistry
+ * 2. Lower the creation fee to 0.001 SUI (devnet convenience)
+ * 3. Create 8 tournaments (mix of online & in-person)
+ * 4. Generate participant wallets, fund them, register them
+ * 5. Start tournaments that have enough participants
  */
 
 import { Transaction } from "@mysten/sui/transactions";
@@ -15,103 +22,152 @@ import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
 import * as fs from "node:fs";
 
-// Configuration - Update these with your deployed values
+// ── Configuration (update after deployment) ─────────────────────────
 const CONFIG = {
-    packageId: "0x21a2ee0d2a1479d09072463fcb754bdcbba0fcc0d79ed2ee95a370bf3abd64e3",
-    platformConfigId: "0xc9bd5e9d6083ec100f890d2dc23439fb27b9dbe1baeee9199001b8915f1a394a",
-    gameRegistryId: "0x539ab612d1539421cb9784f96eabcf8e1c3a6b046d097d79c3a60b640b29e703",
-    creationFee: 1_000_000n, // 0.001 SUI (1M MIST)
+    packageId: "0x8c0f217580840877e8e96826c4c4f25ba40e3f9a0f8cde7d306f4a8350aaa827",
+    platformConfigId: "0x75201387881f917bba7367873670a27d1f2d651c590ff6459b55e33e01168bc2",
+    gameRegistryId: "0x0a00783583c7543880fcf331f1b999aee0c2aa8247243c7e06c1d2809e0cbfc3",
+    adminCapId: "0xa62a8186d435eadb593ef4c36c60cdfd01c661852b2785ce6d56a9587fa59990",
+    creationFee: 1_000_000n, // 0.001 SUI after we lower it
+    fundPerParticipant: 50_000_000n, // 0.05 SUI per participant for gas + entry
 };
 
-// Games from useGames.ts
+// ── Games (must match useGames.ts) ──────────────────────────────────
 const GAMES = [
     { title: "Yu-gi-oh!", slug: "yu-gi-oh" },
     { title: "Magic: The Gathering", slug: "magic-the-gathering" },
     { title: "Shadowverse", slug: "shadowverse" },
     { title: "Riftbound", slug: "riftbound" },
-    { title: "Parallel", slug: "parallel" },
 ];
 
-// Tournament templates - various statuses
+// ── Tournament Templates ────────────────────────────────────────────
 const TOURNAMENT_TEMPLATES = [
-    // OPEN tournaments (STATUS_OPEN = 0)
     {
         name: "Weekly Yu-Gi-Oh! Championship",
         gameSlug: "yu-gi-oh",
-        location: "Tokyo Game Center",
+        isRemote: false,
+        venueAddress: "Akihabara Game Center 3F",
+        venueCity: "Tokyo",
+        venueCountry: "Japan",
         description: "Weekly championship series for competitive Yu-Gi-Oh! players.",
-        entryFee: 10_000_000n, // 0.01 SUI
-        gmFee: 500, // 5%
-        sponsorAmount: 100_000_000n, // 0.1 SUI sponsor pool
+        entryFee: 0n,
+        gmFee: 500,
+        sponsorAmount: 100_000_000n,
+        participantCount: 4,
+        startAfterRegistration: true,
     },
     {
         name: "MTG Modern Masters",
         gameSlug: "magic-the-gathering",
-        location: "Card Kingdom Seattle",
+        isRemote: false,
+        venueAddress: "Card Kingdom",
+        venueCity: "Seattle",
+        venueCountry: "USA",
         description: "Modern format tournament with special prizes.",
-        entryFee: 50_000_000n, // 0.05 SUI
-        gmFee: 300, // 3%
-        sponsorAmount: 500_000_000n, // 0.5 SUI sponsor pool
+        entryFee: 0n,
+        gmFee: 300,
+        sponsorAmount: 500_000_000n,
+        participantCount: 8,
+        startAfterRegistration: false,
     },
     {
         name: "Shadowverse Pro League Qualifiers",
         gameSlug: "shadowverse",
-        location: "Online - Discord Server",
+        isRemote: true,
+        venueAddress: "",
+        venueCity: "",
+        venueCountry: "",
         description: "Qualify for the Shadowverse Pro League Season 5.",
-        entryFee: 25_000_000n, // 0.025 SUI
-        gmFee: 200, // 2%
+        entryFee: 0n,
+        gmFee: 200,
         sponsorAmount: 200_000_000n,
+        participantCount: 4,
+        startAfterRegistration: true,
     },
     {
         name: "Riftbound Launch Tournament",
         gameSlug: "riftbound",
-        location: "Virtual Arena",
+        isRemote: true,
+        venueAddress: "",
+        venueCity: "",
+        venueCountry: "",
         description: "Celebrate the launch of Riftbound with an inaugural tournament!",
-        entryFee: 0n, // Free entry
+        entryFee: 0n,
         gmFee: 0,
-        sponsorAmount: 1_000_000_000n, // 1 SUI prize pool
+        sponsorAmount: 1_000_000_000n,
+        participantCount: 6,
+        startAfterRegistration: false,
     },
-    {
-        name: "Parallel Invitational",
-        gameSlug: "parallel",
-        location: "San Francisco Tech Hub",
-        description: "Exclusive invitational for top Parallel players.",
-        entryFee: 100_000_000n, // 0.1 SUI
-        gmFee: 500,
-        sponsorAmount: 2_000_000_000n, // 2 SUI
-    },
-    // Additional tournaments for variety
     {
         name: "Yu-Gi-Oh! Beginner's Cup",
         gameSlug: "yu-gi-oh",
-        location: "Community Center",
+        isRemote: false,
+        venueAddress: "Community Center Hall B",
+        venueCity: "Thessaloniki",
+        venueCountry: "Greece",
         description: "Friendly tournament for new players looking to learn.",
-        entryFee: 5_000_000n,
+        entryFee: 0n,
         gmFee: 100,
         sponsorAmount: 50_000_000n,
+        participantCount: 3,
+        startAfterRegistration: false,
     },
     {
         name: "MTG Draft Night",
         gameSlug: "magic-the-gathering",
-        location: "Local Game Store",
+        isRemote: false,
+        venueAddress: "The Game Store",
+        venueCity: "London",
+        venueCountry: "UK",
         description: "Draft format tournament - all skill levels welcome!",
-        entryFee: 30_000_000n,
+        entryFee: 0n,
         gmFee: 400,
-        sponsorAmount: 0n,
+        sponsorAmount: 100_000_000n,
+        participantCount: 2,
+        startAfterRegistration: true,
     },
     {
         name: "Shadowverse Grand Prix",
         gameSlug: "shadowverse",
-        location: "Tokyo Convention Center",
+        isRemote: false,
+        venueAddress: "Tokyo Big Sight East Hall",
+        venueCity: "Tokyo",
+        venueCountry: "Japan",
         description: "Major tournament with significant prizes.",
-        entryFee: 75_000_000n,
+        entryFee: 0n,
         gmFee: 300,
         sponsorAmount: 3_000_000_000n,
+        participantCount: 8,
+        startAfterRegistration: false,
+    },
+    {
+        name: "Riftbound Online Open",
+        gameSlug: "riftbound",
+        isRemote: true,
+        venueAddress: "",
+        venueCity: "",
+        venueCountry: "",
+        description: "Open online tournament for Riftbound players worldwide.",
+        entryFee: 0n,
+        gmFee: 200,
+        sponsorAmount: 200_000_000n,
+        participantCount: 0,
+        startAfterRegistration: false,
     },
 ];
 
+// ── Helpers ─────────────────────────────────────────────────────────
+const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+function findCreatedObjectId(result: any, typeSubstring: string): string | null {
+    const change = result.objectChanges?.find(
+        (c: any) => c.type === "created" && c.objectType?.includes(typeSubstring)
+    );
+    return change && "objectId" in change ? change.objectId : null;
+}
+
+// ── Main ────────────────────────────────────────────────────────────
 async function main() {
-    // Get private key from environment
     const privateKey = process.env.SUI_PRIVATE_KEY;
     if (!privateKey) {
         console.error("Error: SUI_PRIVATE_KEY environment variable is required");
@@ -121,149 +177,261 @@ async function main() {
         process.exit(1);
     }
 
-    // Initialize client and keypair
+    if (!CONFIG.packageId || !CONFIG.platformConfigId || !CONFIG.gameRegistryId || !CONFIG.adminCapId) {
+        console.error("Error: CONFIG object IDs are empty. Update them after deployment.");
+        process.exit(1);
+    }
+
     const client = new SuiClient({ url: getFullnodeUrl("devnet") });
+    const gmKeypair = Ed25519Keypair.fromSecretKey(decodeSuiPrivateKey(privateKey).secretKey);
+    const gmAddress = gmKeypair.getPublicKey().toSuiAddress();
 
-    let keypair: Ed25519Keypair;
-    try {
-        const { secretKey } = decodeSuiPrivateKey(privateKey);
-        keypair = Ed25519Keypair.fromSecretKey(secretKey);
-    } catch (e) {
-        console.error("Error: Invalid private key format");
-        process.exit(1);
-    }
-
-    const gmAddress = keypair.getPublicKey().toSuiAddress();
     console.log(`\n🎮 Tournament Seeding Script`);
-    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    console.log(`GM Address: ${gmAddress}`);
-    console.log(`Network: devnet`);
-    console.log(`Package: ${CONFIG.packageId.slice(0, 15)}...`);
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    console.log(`GM Address:  ${gmAddress}`);
+    console.log(`Network:     devnet`);
+    console.log(`Package:     ${CONFIG.packageId.slice(0, 20)}...`);
 
-    // Verify GM address matches expected
-    const expectedGM = "0xc3601f88113a8a794401e92f4136fe605429deb55bce50ede9e10b373ab2fd8f";
-    if (gmAddress !== expectedGM) {
-        console.warn(`\n⚠️  Warning: GM address mismatch`);
-        console.warn(`   Expected: ${expectedGM}`);
-        console.warn(`   Got:      ${gmAddress}`);
-        console.log(`   Continuing anyway...`);
-    }
-
-    // Check balance
     const balance = await client.getBalance({ owner: gmAddress });
-    console.log(`Balance: ${Number(balance.totalBalance) / 1e9} SUI`);
+    console.log(`Balance:     ${(Number(balance.totalBalance) / 1e9).toFixed(4)} SUI`);
 
-    // Calculate required funds
-    let totalRequired = 0n;
-    for (const t of TOURNAMENT_TEMPLATES) {
-        totalRequired += CONFIG.creationFee + t.sponsorAmount;
-    }
-    console.log(`Required: ${Number(totalRequired) / 1e9} SUI\n`);
-
-    if (BigInt(balance.totalBalance) < totalRequired) {
-        console.error("❌ Insufficient balance. Please fund the wallet:");
-        console.log(`   sui client faucet --address ${gmAddress}`);
-        process.exit(1);
-    }
-
-    // Get coins for gas
-    const coins = await client.getCoins({ owner: gmAddress });
-    if (coins.data.length === 0) {
-        console.error("❌ No coins available");
-        process.exit(1);
-    }
-
-    const createdTournaments: string[] = [];
-    const now = Date.now();
-
-    for (let i = 0; i < TOURNAMENT_TEMPLATES.length; i++) {
-        const t = TOURNAMENT_TEMPLATES[i];
-        const game = GAMES.find(g => g.slug === t.gameSlug)!;
-
-        console.log(`\n📋 Creating tournament ${i + 1}/${TOURNAMENT_TEMPLATES.length}:`);
-        console.log(`   ${t.name} (${game.title})`);
-
+    // ── Step 1: Register Games ──────────────────────────────────────
+    console.log(`\n📝 Step 1: Registering Games`);
+    for (const game of GAMES) {
         const tx = new Transaction();
-
-        // Calculate total payment needed (creation fee + sponsor amount)
-        const totalPayment = CONFIG.creationFee + t.sponsorAmount;
-
-        // Split coin for payment
-        const [paymentCoin] = tx.splitCoins(tx.gas, [totalPayment]);
-
-        // Call create_tournament
         tx.moveCall({
-            target: `${CONFIG.packageId}::tournament::create_tournament`,
+            target: `${CONFIG.packageId}::game_registry::add_game`,
             arguments: [
-                tx.object(CONFIG.platformConfigId),
                 tx.object(CONFIG.gameRegistryId),
-                tx.pure.string(t.name),
-                tx.pure.string(t.location),
-                tx.pure.u64(now + (i * 86400000)), // Stagger dates by 1 day
-                tx.pure.string(t.gameSlug),
-                tx.pure.string(t.description),
-                tx.pure.u64(t.entryFee),
-                tx.pure.u64(t.gmFee),
-                paymentCoin,
+                tx.object(CONFIG.adminCapId),
+                tx.pure.string(game.title),
+                tx.pure.string(game.slug),
             ],
         });
 
         try {
-            const result = await client.signAndExecuteTransaction({
-                signer: keypair,
+            await client.signAndExecuteTransaction({
+                signer: gmKeypair,
                 transaction: tx,
-                options: {
-                    showEffects: true,
-                    showObjectChanges: true,
-                },
+                options: { showEffects: true },
             });
-
-            if (result.effects?.status.status === "success") {
-                // Find created tournament object
-                const tournamentChange = result.objectChanges?.find(
-                    (c) => c.type === "created" && c.objectType?.includes("Tournament")
-                );
-
-                const tournamentId = tournamentChange && 'objectId' in tournamentChange
-                    ? tournamentChange.objectId
-                    : "unknown";
-
-                createdTournaments.push(tournamentId);
-                console.log(`   ✅ Created: ${tournamentId.slice(0, 15)}...`);
-            } else {
-                console.log(`   ❌ Failed: ${result.effects?.status.error}`);
-            }
+            console.log(`   ✅ ${game.title}`);
         } catch (e: any) {
-            console.log(`   ❌ Error: ${e.message}`);
+            if (e.message?.includes("1004")) {
+                console.log(`   ℹ️  ${game.title} (already registered)`);
+            } else {
+                console.warn(`   ⚠️  ${game.title}: ${e.message?.slice(0, 80)}`);
+            }
         }
-
-        // Small delay between transactions
-        await new Promise(r => setTimeout(r, 1000));
+        await delay(300);
     }
 
-    console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    console.log(`✨ Seeding complete!`);
-    console.log(`   Created ${createdTournaments.length}/${TOURNAMENT_TEMPLATES.length} tournaments`);
-    console.log(`\n📝 Tournament IDs:`);
-    createdTournaments.forEach((id, i) => {
-        console.log(`   ${i + 1}. ${id}`);
+    // ── Step 2: Lower Creation Fee ──────────────────────────────────
+    console.log(`\n💰 Step 2: Setting creation fee to 0.001 SUI`);
+    const feeTx = new Transaction();
+    feeTx.moveCall({
+        target: `${CONFIG.packageId}::platform_config::update_creation_fee`,
+        arguments: [
+            feeTx.object(CONFIG.platformConfigId),
+            feeTx.object(CONFIG.adminCapId),
+            feeTx.pure.u64(CONFIG.creationFee),
+        ],
     });
 
-    // Save tournament IDs to a file
+    try {
+        await client.signAndExecuteTransaction({
+            signer: gmKeypair,
+            transaction: feeTx,
+            options: { showEffects: true },
+        });
+        console.log(`   ✅ Creation fee updated`);
+    } catch (e: any) {
+        console.warn(`   ⚠️  ${e.message?.slice(0, 80)}`);
+    }
+    await delay(500);
+
+    // ── Step 3: Create Tournaments + Register Participants ──────────
+    console.log(`\n🏆 Step 3: Creating Tournaments & Registering Participants`);
+    const now = Date.now();
+    const createdTournaments: { id: string; name: string; participants: number; started: boolean }[] = [];
+
+    for (let i = 0; i < TOURNAMENT_TEMPLATES.length; i++) {
+        const t = TOURNAMENT_TEMPLATES[i];
+        console.log(`\n   ── Tournament ${i + 1}/${TOURNAMENT_TEMPLATES.length}: ${t.name} ──`);
+
+        // 3a. Create tournament
+        const createTx = new Transaction();
+        const totalPayment = CONFIG.creationFee + t.sponsorAmount;
+        const [paymentCoin] = createTx.splitCoins(createTx.gas, [totalPayment]);
+
+        createTx.moveCall({
+            target: `${CONFIG.packageId}::tournament::create_tournament`,
+            arguments: [
+                createTx.object(CONFIG.platformConfigId),
+                createTx.object(CONFIG.gameRegistryId),
+                createTx.pure.string(t.name),
+                createTx.pure.bool(t.isRemote),
+                createTx.pure.string(t.venueAddress),
+                createTx.pure.string(t.venueCity),
+                createTx.pure.string(t.venueCountry),
+                createTx.pure.u64(now + (i * 86400000)),
+                createTx.pure.string(t.gameSlug),
+                createTx.pure.string(t.description),
+                createTx.pure.u64(t.entryFee),
+                createTx.pure.u64(t.gmFee),
+                paymentCoin,
+            ],
+        });
+
+        let tournamentId: string | null = null;
+        try {
+            const result = await client.signAndExecuteTransaction({
+                signer: gmKeypair,
+                transaction: createTx,
+                options: { showEffects: true, showObjectChanges: true },
+            });
+
+            if (result.effects?.status.status !== "success") {
+                console.log(`   ❌ Create failed: ${result.effects?.status.error}`);
+                continue;
+            }
+
+            tournamentId = findCreatedObjectId(result, "Tournament");
+            console.log(`   ✅ Created: ${tournamentId?.slice(0, 20)}...`);
+        } catch (e: any) {
+            console.log(`   ❌ Error: ${e.message?.slice(0, 80)}`);
+            continue;
+        }
+
+        if (!tournamentId) continue;
+        await delay(500);
+
+        // 3b. Generate, fund & register participants
+        let registeredCount = 0;
+        if (t.participantCount > 0) {
+            console.log(`   👥 Generating ${t.participantCount} participants...`);
+
+            const participantKeypairs: Ed25519Keypair[] = [];
+            const fundTx = new Transaction();
+            const fundCoins = fundTx.splitCoins(
+                fundTx.gas,
+                Array(t.participantCount).fill(CONFIG.fundPerParticipant)
+            );
+
+            for (let j = 0; j < t.participantCount; j++) {
+                const kp = new Ed25519Keypair();
+                participantKeypairs.push(kp);
+                fundTx.transferObjects([fundCoins[j]], kp.getPublicKey().toSuiAddress());
+            }
+
+            try {
+                const fundRes = await client.signAndExecuteTransaction({
+                    signer: gmKeypair,
+                    transaction: fundTx,
+                    options: { showEffects: true },
+                });
+                if (fundRes.effects?.status.status !== "success") {
+                    console.log(`   ❌ Funding failed`);
+                } else {
+                    console.log(`   ✅ Funded ${t.participantCount} wallets`);
+                }
+            } catch (e: any) {
+                console.log(`   ❌ Funding error: ${e.message?.slice(0, 80)}`);
+            }
+
+            await delay(500);
+
+            // Register each participant
+            for (let j = 0; j < participantKeypairs.length; j++) {
+                const kp = participantKeypairs[j];
+                const regTx = new Transaction();
+                const [payCoin] = regTx.splitCoins(regTx.gas, [t.entryFee]);
+
+                regTx.moveCall({
+                    target: `${CONFIG.packageId}::tournament::register`,
+                    arguments: [regTx.object(tournamentId), payCoin],
+                });
+
+                try {
+                    const res = await client.signAndExecuteTransaction({
+                        signer: kp,
+                        transaction: regTx,
+                        options: { showEffects: true },
+                    });
+                    if (res.effects?.status.status === "success") {
+                        registeredCount++;
+                    } else {
+                        console.log(`   ⚠️  Player ${j + 1} registration failed`);
+                    }
+                } catch (e: any) {
+                    console.log(`   ⚠️  Player ${j + 1} error: ${e.message?.slice(0, 60)}`);
+                }
+                await delay(200);
+            }
+            console.log(`   ✅ Registered ${registeredCount}/${t.participantCount} participants`);
+        }
+
+        // 3c. Start tournament if configured and has >= 2 participants
+        let started = false;
+        if (t.startAfterRegistration && registeredCount >= 2) {
+            const startTx = new Transaction();
+            startTx.moveCall({
+                target: `${CONFIG.packageId}::tournament::start_tournament`,
+                arguments: [startTx.object(tournamentId)],
+            });
+
+            try {
+                const startRes = await client.signAndExecuteTransaction({
+                    signer: gmKeypair,
+                    transaction: startTx,
+                    options: { showEffects: true },
+                });
+                if (startRes.effects?.status.status === "success") {
+                    started = true;
+                    console.log(`   🚀 Tournament started!`);
+                } else {
+                    console.log(`   ⚠️  Start failed: ${startRes.effects?.status.error}`);
+                }
+            } catch (e: any) {
+                console.log(`   ⚠️  Start error: ${e.message?.slice(0, 60)}`);
+            }
+            await delay(300);
+        }
+
+        createdTournaments.push({
+            id: tournamentId,
+            name: t.name,
+            participants: registeredCount,
+            started,
+        });
+
+        await delay(500);
+    }
+
+    // ── Summary ─────────────────────────────────────────────────────
+    console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    console.log(`✨ Seeding Complete!`);
+    console.log(`   Created: ${createdTournaments.length}/${TOURNAMENT_TEMPLATES.length}`);
+    console.log(`\n📝 Tournaments:`);
+    createdTournaments.forEach((t, i) => {
+        const status = t.started ? "LIVE" : t.participants > 0 ? "OPEN (with players)" : "OPEN (empty)";
+        console.log(`   ${i + 1}. ${t.name}`);
+        console.log(`      ID: ${t.id}`);
+        console.log(`      Participants: ${t.participants} | Status: ${status}`);
+    });
+
+    // Save deployment info
     const output = {
         packageId: CONFIG.packageId,
         platformConfigId: CONFIG.platformConfigId,
         gameRegistryId: CONFIG.gameRegistryId,
+        adminCapId: CONFIG.adminCapId,
         gmAddress,
         tournaments: createdTournaments,
         createdAt: new Date().toISOString(),
     };
 
-    const fs = await import("fs");
-    fs.writeFileSync(
-        "./move/devnet-deployment.json",
-        JSON.stringify(output, null, 2)
-    );
+    fs.writeFileSync("./move/devnet-deployment.json", JSON.stringify(output, null, 2));
     console.log(`\n💾 Saved to: ./move/devnet-deployment.json`);
 }
 

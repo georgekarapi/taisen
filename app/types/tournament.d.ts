@@ -12,7 +12,10 @@ interface ContractMatch {
 interface Tournament {
     id: string
     name: string
-    location: string
+    isRemote: boolean
+    venueAddress: string
+    venueCity: string
+    venueCountry: string
     date: number
     gameType: string
     description: string
@@ -46,7 +49,10 @@ interface TournamentDisplay {
     participants: string[]
     gameMaster: string
     description: string
-    location: string
+    isRemote: boolean
+    venueAddress: string
+    venueCity: string
+    venueCountry: string
     date: Date
 }
 

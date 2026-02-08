@@ -320,7 +320,11 @@ const bracketRounds = computed<BracketRound[]>(() => {
                                 <div class="text-sm text-slate-400">
                                     <strong
                                         class="block text-slate-200 text-xs uppercase tracking-wide mb-0.5">Location</strong>
-                                    {{ tournament.location || 'Online' }}
+                                    <template v-if="tournament.isRemote">Online</template>
+                                    <template v-else>
+                                        <span v-if="tournament.venueAddress">{{ tournament.venueAddress }}, </span>
+                                        {{ [tournament.venueCity, tournament.venueCountry].filter(Boolean).join(', ') }}
+                                    </template>
                                 </div>
                             </li>
                             <li class="flex items-start gap-4 group">
