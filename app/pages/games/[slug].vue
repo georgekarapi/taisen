@@ -1,17 +1,39 @@
 <script setup lang="ts">
-import { Trophy, Users, Zap, Calendar, ExternalLink } from 'lucide-vue-next'
+import { Users, Zap, ExternalLink } from 'lucide-vue-next'
 
 const route = useRoute()
 const slug = route.params.slug as string
 const { getGameBySlug } = useGames()
+const { fetchAllTournaments, getDisplayTournaments, loading, error } = useTournaments()
 
 const game = computed(() => getGameBySlug(slug) || {
     title: slug.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
     slug: slug,
     banner: '/images/banners/default.webp',
-    logo: '/images/game-icons/mtg.webp', // Fallback
-    sidebarIcon: '/images/game-icons/mtg.webp'
+    logo: '/images/game-icons/mtg.webp',
+    description: '',
 })
+
+// Fetch tournaments on mount
+const hasFetched = ref(false)
+const isMounted = ref(false)
+
+onMounted(async () => {
+    isMounted.value = true
+    await fetchAllTournaments()
+    hasFetched.value = true
+})
+
+const displayTournaments = getDisplayTournaments()
+
+// Filter to upcoming/live tournaments for this game
+const gameTournaments = computed(() => {
+    return displayTournaments.value.filter(t =>
+        t.game === game.value.title && (t.status === 'UPCOMING' || t.status === 'LIVE')
+    )
+})
+
+const showSkeleton = computed(() => !isMounted.value || loading.value || !hasFetched.value)
 </script>
 
 <template>
@@ -62,36 +84,38 @@ const game = computed(() => getGameBySlug(slug) || {
                             About {{ game.title }}
                         </h2>
                         <p class="text-white/60 leading-relaxed max-w-3xl">
-                            Experience the cutting-edge of blockchain TCG gaming. {{ game.title }} on Taisen brings you
-                            high-stakes tournaments, verified fair play, and instant prize distributions. Connect your
-                            neural link and join the competitive ranks today.
+                            {{ game.description }}
                         </p>
                     </CyberCard>
 
-                    <!-- Placeholder for Tournaments -->
+                    <!-- Upcoming Tournaments -->
                     <div class="space-y-4">
                         <h2
                             class="text-xl font-display font-bold text-white uppercase tracking-wider mb-6 flex items-center gap-3">
                             <div class="w-1 h-6 bg-secondary"></div>
                             Upcoming Tournaments
                         </h2>
-                        <div v-for="i in 3" :key="i"
-                            class="bg-white/5 border border-white/5 rounded-xl p-6 flex items-center justify-between group hover:bg-white/10 hover:border-white/20 transition-all cursor-not-allowed animate-slide-up"
-                            :style="{ animationDelay: `${i * 150}ms`, opacity: 0 }">
-                            <div class="flex items-center gap-6">
-                                <div
-                                    class="w-12 h-12 rounded bg-black/20 flex flex-col items-center justify-center border border-white/5">
-                                    <span class="text-[10px] text-white/40 font-bold uppercase">Feb</span>
-                                    <span class="text-lg font-black text-white leading-none">{{ 12 + i }}</span>
-                                </div>
-                                <div>
-                                    <div class="text-white font-bold tracking-wide uppercase">Deep Grid Championship
-                                    </div>
-                                    <div class="text-[10px] text-white/40 uppercase tracking-widest mt-1">Sui Devnet •
-                                        500 USDC Pool</div>
-                                </div>
+
+                        <div v-if="showSkeleton" class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                            <HomeTournamentCardSkeleton v-for="i in 3" :key="i" />
+                        </div>
+
+                        <div v-else-if="error" class="text-center py-20">
+                            <div class="text-red-400 font-display uppercase tracking-wider mb-2">Error loading
+                                tournaments</div>
+                            <div class="text-slate-500 text-sm">{{ error }}</div>
+                        </div>
+
+                        <div v-else-if="gameTournaments.length === 0" class="text-center py-20">
+                            <div class="text-slate-400 font-display uppercase tracking-wider">No upcoming tournaments
                             </div>
-                            <Calendar class="w-5 h-5 text-white/20" />
+                            <div class="text-slate-500 text-sm mt-2">Check back soon for new {{ game.title }}
+                                tournaments</div>
+                        </div>
+
+                        <div v-else class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                            <TournamentCard v-for="tournament in gameTournaments" :key="tournament.id"
+                                :tournament="tournament" />
                         </div>
                     </div>
                 </div>
@@ -127,20 +151,3 @@ const game = computed(() => getGameBySlug(slug) || {
     </div>
 </template>
 
-<style scoped>
-@keyframes slide-up {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-
-    to {
-        opacity: 0.5;
-        transform: translateY(0);
-    }
-}
-
-.animate-slide-up {
-    animation: slide-up 0.5s ease-out forwards;
-}
-</style>
