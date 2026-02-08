@@ -73,14 +73,6 @@ const gameStats = computed(() => {
                             class="text-5xl lg:text-7xl font-display font-black text-white uppercase tracking-tighter mb-2">
                             {{ game.title }}
                         </h1>
-                        <div class="flex items-center gap-4 text-white/60 uppercase tracking-widest text-xs font-bold">
-                            <span class="flex items-center gap-1.5">
-                                <Zap class="w-3 h-3 text-primary" /> 1.2k Live
-                            </span>
-                            <span class="flex items-center gap-1.5">
-                                <Users class="w-3 h-3 text-secondary" /> 45k Players
-                            </span>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -165,4 +157,3 @@ const gameStats = computed(() => {
         </div>
     </div>
 </template>
-
