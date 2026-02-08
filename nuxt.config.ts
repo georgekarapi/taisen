@@ -4,6 +4,14 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
+  app: {
+    head: {
+      link: [
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+        { rel: 'icon', type: 'image/svg+xml', href: '/images/logo/taisenlogo.svg' },
+      ],
+    },
+  },
   modules: ['@nuxt/eslint', '@nuxt/image', 'shadcn-nuxt', '@vueuse/nuxt', '@nuxt/fonts'],
   css: ['@/assets/css/main.css'],
   vite: {

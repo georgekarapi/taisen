@@ -9,8 +9,8 @@ const sidebarGames = computed(() => games.filter(g => g.logo))
     <nav class="flex h-full w-24 flex-shrink-0 flex-col items-center border-r border-cyber-panel bg-cyber-panel z-40">
         <div class="mb-8 flex w-full justify-center py-6">
             <NuxtLink to="/">
-                <NuxtImg alt="CyberArena Logo"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxQgILoV6ox8y1Ea_ZRigW-5Xn_2MzCl2JK9rJMMqFY5swMqd84_eOA-w46ND75UFp2aX55dbYJDCcjLfEb_JLk-GcIYGLck87EqKPHwgiZmsE2gz8uPM41_q_qyYhA4Vu3ZmgAv5s2E3ZpYkhgXWCzgr1YOBw_9GIT0GaXOZ2LtRIBR4mfaYE35Ej66FdeFBLaOU2WlRczBESWGxtH5H685QGpOqZQAZI3jQbhSPp8pK6RGm6_Q8F-6jWFoQRwD0gjfDFoT5t6jg"
+                <img alt="Taisen Logo"
+                    src="/images/logo/taisenlogo.svg"
                     class="w-[60px] p-[5px] mix-blend-screen" />
             </NuxtLink>
         </div>
