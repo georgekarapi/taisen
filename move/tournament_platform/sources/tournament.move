@@ -8,11 +8,11 @@ module tournament_platform::tournament {
     // use std::vector; 
     // use std::option::{Self, Option}; 
 
-    use tournament_platform::platform_config::{Self, PlatformConfig};
+    use tournament_platform::platform_config::{Self, PlatformConfig, AdminCap};
     use tournament_platform::game_registry::{Self, GameRegistry};
 
     // ============ VERSION TRACKING ============
-    const VERSION: u64 = 1;
+    const VERSION: u64 = 3;
 
     // ============ STATUS CONSTANTS ============
     const STATUS_OPEN: u8 = 0;
@@ -261,14 +261,10 @@ module tournament_platform::tournament {
 
     // ============ START TOURNAMENT ============
 
-    public fun start_tournament(
+    fun start_tournament_internal(
         tournament: &mut Tournament,
         ctx: &mut TxContext,
     ) {
-        check_version(tournament);
-        assert!(tournament.status == STATUS_OPEN, EInvalidStatus);
-        assert!(tx_context::sender(ctx) == tournament.game_master, ENotGameMaster);
-        
         let num_players = vector::length(&tournament.participants);
         assert!(num_players >= 2, ENotEnoughPlayers);
 
@@ -288,19 +284,37 @@ module tournament_platform::tournament {
         });
     }
 
+    public fun start_tournament(
+        tournament: &mut Tournament,
+        ctx: &mut TxContext,
+    ) {
+        check_version(tournament);
+        assert!(tournament.status == STATUS_OPEN, EInvalidStatus);
+        assert!(tx_context::sender(ctx) == tournament.game_master, ENotGameMaster);
+        
+        start_tournament_internal(tournament, ctx);
+    }
+
+    public fun admin_start_tournament(
+        tournament: &mut Tournament,
+        _admin_cap: &AdminCap,
+        ctx: &mut TxContext,
+    ) {
+        check_version(tournament);
+        assert!(tournament.status == STATUS_OPEN, EInvalidStatus);
+        
+        start_tournament_internal(tournament, ctx);
+    }
+
     // ============ REPORT MATCH RESULT ============
 
-    public fun report_match_result(
+    fun report_match_result_internal(
         tournament: &mut Tournament,
         config: &PlatformConfig,
         match_id: u64,
         winner_address: address,
         ctx: &mut TxContext,
     ) {
-        check_version(tournament);
-        assert!(tournament.status == STATUS_IN_PROGRESS, EInvalidStatus);
-        assert!(tx_context::sender(ctx) == tournament.game_master, ENotGameMaster);
-
         assert!(dynamic_object_field::exists_(&tournament.id, match_id), EInvalidMatch);
         
         // Scope for match modification to release borrow
@@ -362,6 +376,34 @@ module tournament_platform::tournament {
         }
     }
 
+    public fun report_match_result(
+        tournament: &mut Tournament,
+        config: &PlatformConfig,
+        match_id: u64,
+        winner_address: address,
+        ctx: &mut TxContext,
+    ) {
+        check_version(tournament);
+        assert!(tournament.status == STATUS_IN_PROGRESS, EInvalidStatus);
+        assert!(tx_context::sender(ctx) == tournament.game_master, ENotGameMaster);
+
+        report_match_result_internal(tournament, config, match_id, winner_address, ctx);
+    }
+
+    public fun admin_report_match_result(
+        tournament: &mut Tournament,
+        config: &PlatformConfig,
+        _admin_cap: &AdminCap,
+        match_id: u64,
+        winner_address: address,
+        ctx: &mut TxContext,
+    ) {
+        check_version(tournament);
+        assert!(tournament.status == STATUS_IN_PROGRESS, EInvalidStatus);
+
+        report_match_result_internal(tournament, config, match_id, winner_address, ctx);
+    }
+
     // ============ COMPLETE TOURNAMENT ============
 
     fun complete_tournament(
@@ -416,14 +458,10 @@ module tournament_platform::tournament {
 
     // ============ CANCEL TOURNAMENT ============
 
-    public fun cancel_tournament(
+    fun cancel_tournament_internal(
         tournament: &mut Tournament,
         ctx: &mut TxContext,
     ) {
-        check_version(tournament);
-        assert!(tournament.status == STATUS_OPEN || tournament.status == STATUS_IN_PROGRESS, EInvalidStatus);
-        assert!(tx_context::sender(ctx) == tournament.game_master, ENotGameMaster);
-
         tournament.status = STATUS_CANCELLED;
 
         // Refund all players
@@ -456,6 +494,37 @@ module tournament_platform::tournament {
             tournament_id: object::id(tournament),
             refunded_players: num_players,
         });
+    }
+
+    public fun cancel_tournament(
+        tournament: &mut Tournament,
+        ctx: &mut TxContext,
+    ) {
+        check_version(tournament);
+        assert!(tournament.status == STATUS_OPEN || tournament.status == STATUS_IN_PROGRESS, EInvalidStatus);
+        assert!(tx_context::sender(ctx) == tournament.game_master, ENotGameMaster);
+
+        cancel_tournament_internal(tournament, ctx);
+    }
+
+    public fun admin_cancel_tournament(
+        tournament: &mut Tournament,
+        _admin_cap: &AdminCap,
+        ctx: &mut TxContext,
+    ) {
+        check_version(tournament);
+        assert!(tournament.status == STATUS_OPEN || tournament.status == STATUS_IN_PROGRESS, EInvalidStatus);
+
+        cancel_tournament_internal(tournament, ctx);
+    }
+
+    public entry fun admin_update_tournament_date(
+        _tournament: &mut Tournament,
+        _admin_cap: &AdminCap,
+        _new_date: u64,
+        _ctx: &mut TxContext,
+    ) {
+        // No-op to maintain upgrade compatibility
     }
 
     // ============ MIGRATION ============

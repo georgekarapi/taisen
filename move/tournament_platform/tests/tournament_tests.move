@@ -65,7 +65,7 @@ module tournament_platform::tournament_tests {
         {
             let mut tournament = test_scenario::take_shared<Tournament>(&scenario);
             let payment = coin::mint_for_testing<SUI>(1_000_000_000, test_scenario::ctx(&mut scenario));
-            tournament::register(&mut tournament, payment, test_scenario::ctx(&mut scenario));
+            tournament::register(&mut tournament, string::utf8(b"player1"), payment, test_scenario::ctx(&mut scenario));
             test_scenario::return_shared(tournament);
         };
 
@@ -73,7 +73,7 @@ module tournament_platform::tournament_tests {
         {
             let mut tournament = test_scenario::take_shared<Tournament>(&scenario);
             let payment = coin::mint_for_testing<SUI>(1_000_000_000, test_scenario::ctx(&mut scenario));
-            tournament::register(&mut tournament, payment, test_scenario::ctx(&mut scenario));
+            tournament::register(&mut tournament, string::utf8(b"player1"), payment, test_scenario::ctx(&mut scenario));
             test_scenario::return_shared(tournament);
         };
 
@@ -141,7 +141,7 @@ module tournament_platform::tournament_tests {
         {
             let mut tournament = test_scenario::take_shared<Tournament>(&scenario);
             let payment = coin::mint_for_testing<SUI>(1_000_000_000, test_scenario::ctx(&mut scenario));
-            tournament::register(&mut tournament, payment, test_scenario::ctx(&mut scenario));
+            tournament::register(&mut tournament, string::utf8(b"player1"), payment, test_scenario::ctx(&mut scenario));
             test_scenario::return_shared(tournament);
         };
 
@@ -192,7 +192,7 @@ module tournament_platform::tournament_tests {
         {
             let mut tournament = test_scenario::take_shared<Tournament>(&scenario);
             let payment = coin::mint_for_testing<SUI>(1_000_000_000, test_scenario::ctx(&mut scenario));
-            tournament::register(&mut tournament, payment, test_scenario::ctx(&mut scenario));
+            tournament::register(&mut tournament, string::utf8(b"player1"), payment, test_scenario::ctx(&mut scenario));
             test_scenario::return_shared(tournament);
         };
 
@@ -201,7 +201,7 @@ module tournament_platform::tournament_tests {
         {
             let mut tournament = test_scenario::take_shared<Tournament>(&scenario);
             let payment = coin::mint_for_testing<SUI>(1_000_000_000, test_scenario::ctx(&mut scenario));
-            tournament::register(&mut tournament, payment, test_scenario::ctx(&mut scenario));
+            tournament::register(&mut tournament, string::utf8(b"player1"), payment, test_scenario::ctx(&mut scenario));
             test_scenario::return_shared(tournament);
         };
 
@@ -244,7 +244,7 @@ module tournament_platform::tournament_tests {
         {
             let mut tournament = test_scenario::take_shared<Tournament>(&scenario);
             let payment = coin::mint_for_testing<SUI>(500_000_000, test_scenario::ctx(&mut scenario)); // Only 0.5 SUI
-            tournament::register(&mut tournament, payment, test_scenario::ctx(&mut scenario));
+            tournament::register(&mut tournament, string::utf8(b"player1"), payment, test_scenario::ctx(&mut scenario));
             test_scenario::return_shared(tournament);
         };
 
@@ -287,7 +287,7 @@ module tournament_platform::tournament_tests {
         {
             let mut tournament = test_scenario::take_shared<Tournament>(&scenario);
             let payment = coin::mint_for_testing<SUI>(1_000_000_000, test_scenario::ctx(&mut scenario));
-            tournament::register(&mut tournament, payment, test_scenario::ctx(&mut scenario));
+            tournament::register(&mut tournament, string::utf8(b"player1"), payment, test_scenario::ctx(&mut scenario));
             test_scenario::return_shared(tournament);
         };
 
@@ -337,7 +337,7 @@ module tournament_platform::tournament_tests {
         {
             let mut tournament = test_scenario::take_shared<Tournament>(&scenario);
             let payment = coin::mint_for_testing<SUI>(1_000_000_000, test_scenario::ctx(&mut scenario));
-            tournament::register(&mut tournament, payment, test_scenario::ctx(&mut scenario));
+            tournament::register(&mut tournament, string::utf8(b"player1"), payment, test_scenario::ctx(&mut scenario));
             test_scenario::return_shared(tournament);
         };
 
@@ -345,7 +345,7 @@ module tournament_platform::tournament_tests {
         {
             let mut tournament = test_scenario::take_shared<Tournament>(&scenario);
             let payment = coin::mint_for_testing<SUI>(1_000_000_000, test_scenario::ctx(&mut scenario));
-            tournament::register(&mut tournament, payment, test_scenario::ctx(&mut scenario));
+            tournament::register(&mut tournament, string::utf8(b"player1"), payment, test_scenario::ctx(&mut scenario));
             test_scenario::return_shared(tournament);
         };
 
@@ -353,7 +353,7 @@ module tournament_platform::tournament_tests {
         {
             let mut tournament = test_scenario::take_shared<Tournament>(&scenario);
             let payment = coin::mint_for_testing<SUI>(1_000_000_000, test_scenario::ctx(&mut scenario));
-            tournament::register(&mut tournament, payment, test_scenario::ctx(&mut scenario));
+            tournament::register(&mut tournament, string::utf8(b"player1"), payment, test_scenario::ctx(&mut scenario));
             test_scenario::return_shared(tournament);
         };
 
@@ -363,6 +363,107 @@ module tournament_platform::tournament_tests {
             let mut tournament = test_scenario::take_shared<Tournament>(&scenario);
             tournament::start_tournament(&mut tournament, test_scenario::ctx(&mut scenario));
             test_scenario::return_shared(tournament);
+        };
+        test_scenario::end(scenario);
+    }
+
+    #[test]
+    fun test_admin_overrides() {
+        let mut scenario = test_scenario::begin(ADMIN);
+        setup_platform(&mut scenario);
+
+        // Create Tournament (GM)
+        test_scenario::next_tx(&mut scenario, GM);
+        {
+            let config = test_scenario::take_shared<PlatformConfig>(&scenario);
+            let registry = test_scenario::take_shared<GameRegistry>(&scenario);
+            let payment = coin::mint_for_testing<SUI>(15_000_000_000, test_scenario::ctx(&mut scenario));
+
+            tournament::create_tournament(
+                &config,
+                &registry,
+                string::utf8(b"Admin Test"),
+                true,
+                string::utf8(b""),
+                string::utf8(b""),
+                string::utf8(b""),
+                1000,
+                string::utf8(b"game"),
+                string::utf8(b"Desc"),
+                1_000_000_000,
+                1000,
+                payment,
+                test_scenario::ctx(&mut scenario)
+            );
+
+            test_scenario::return_shared(config);
+            test_scenario::return_shared(registry);
+        };
+
+        // Register Players
+        test_scenario::next_tx(&mut scenario, PLAYER1);
+        {
+            let mut tournament = test_scenario::take_shared<Tournament>(&scenario);
+            let payment = coin::mint_for_testing<SUI>(1_000_000_000, test_scenario::ctx(&mut scenario));
+            tournament::register(&mut tournament, string::utf8(b"p1"), payment, test_scenario::ctx(&mut scenario));
+            test_scenario::return_shared(tournament);
+        };
+
+        test_scenario::next_tx(&mut scenario, PLAYER2);
+        {
+            let mut tournament = test_scenario::take_shared<Tournament>(&scenario);
+            let payment = coin::mint_for_testing<SUI>(1_000_000_000, test_scenario::ctx(&mut scenario));
+            tournament::register(&mut tournament, string::utf8(b"p2"), payment, test_scenario::ctx(&mut scenario));
+            test_scenario::return_shared(tournament);
+        };
+
+        test_scenario::next_tx(&mut scenario, PLAYER3);
+        {
+            let mut tournament = test_scenario::take_shared<Tournament>(&scenario);
+            let payment = coin::mint_for_testing<SUI>(1_000_000_000, test_scenario::ctx(&mut scenario));
+            tournament::register(&mut tournament, string::utf8(b"p3"), payment, test_scenario::ctx(&mut scenario));
+            test_scenario::return_shared(tournament);
+        };
+
+        // Start Tournament (ADMIN override)
+        test_scenario::next_tx(&mut scenario, ADMIN);
+        {
+            let mut tournament = test_scenario::take_shared<Tournament>(&scenario);
+            let admin_cap = test_scenario::take_from_sender<AdminCap>(&scenario);
+            tournament::admin_start_tournament(&mut tournament, &admin_cap, test_scenario::ctx(&mut scenario));
+            test_scenario::return_shared(tournament);
+            test_scenario::return_to_sender(&scenario, admin_cap);
+        };
+
+        // Report Result (ADMIN override)
+        test_scenario::next_tx(&mut scenario, ADMIN);
+        {
+            let mut tournament = test_scenario::take_shared<Tournament>(&scenario);
+            let config = test_scenario::take_shared<PlatformConfig>(&scenario);
+            let admin_cap = test_scenario::take_from_sender<AdminCap>(&scenario);
+            
+            tournament::admin_report_match_result(
+                &mut tournament,
+                &config,
+                &admin_cap,
+                0,
+                PLAYER1,
+                test_scenario::ctx(&mut scenario)
+            );
+
+            test_scenario::return_shared(tournament);
+            test_scenario::return_shared(config);
+            test_scenario::return_to_sender(&scenario, admin_cap);
+        };
+
+        // Cancel Tournament (ADMIN override)
+        test_scenario::next_tx(&mut scenario, ADMIN);
+        {
+            let mut tournament = test_scenario::take_shared<Tournament>(&scenario);
+            let admin_cap = test_scenario::take_from_sender<AdminCap>(&scenario);
+            tournament::admin_cancel_tournament(&mut tournament, &admin_cap, test_scenario::ctx(&mut scenario));
+            test_scenario::return_shared(tournament);
+            test_scenario::return_to_sender(&scenario, admin_cap);
         };
 
         test_scenario::end(scenario);

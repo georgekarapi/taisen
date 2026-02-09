@@ -4,6 +4,9 @@ edition = "2024"         # edition = "legacy" to use legacy (pre-2024) Move
 # license = ""           # e.g., "MIT", "GPL", "Apache 2.0"
 # authors = ["..."]      # e.g., ["Joe Smith (joesmith@noemail.com)", "John Snow (johnsnow@noemail.com)"]
 
+[addresses]
+tournament_platform = "0x73649b91a0c6e83e2fb88816edb2e39e4065852dce8efba13e2ffd7934c410cc"
+
 [dependencies]
 # System dependencies (Sui, MoveStdlib) are implicit in 2024 edition
 
